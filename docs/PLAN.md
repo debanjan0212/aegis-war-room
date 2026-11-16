@@ -75,4 +75,4 @@ In the order that removes the most risk first.
 
 **One, for now**, with `main` and `develop` from day one. A single repository is easier to understand, to demo and to keep secure: one pipeline, one set of lock files, one place to look.
 
-**Nine at the goal**, plus one private configuration repository per client, every one following the same Gitflow. Which repositories, what triggers each split, the 22 agents and how they work together are all in [`ROADMAP.md`](ROADMAP.md).
+**Nine at the goal**, plus one private configuration repository per client, every one following the same Gitflow. Which repositories, what triggers each split, the 22 agents and how they work together are all in [`ROADMAP.md`](ROADMAP.md). How to build each one is in [`BLUEPRINT.md`](BLUEPRINT.md).

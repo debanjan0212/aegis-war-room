@@ -20,7 +20,7 @@ make check                      # lint, tests, the code scan and the security dr
 git push -u origin feature/short-name
 ```
 
-Open a pull request **into `develop`**. It needs the `ci` and `security` checks green and one approval. Changes to `config/policy.yaml`, `aegis/security/` or `.github/` need the owner's approval.
+Open a pull request **into `develop`**. It needs the `ci` and `security` checks green. Once there is a second maintainer it also needs one approval from someone other than the author. Changes to `config/policy.yaml`, `aegis/security/` or `.github/` need the owner's approval.
 
 ## A release
 

@@ -169,7 +169,7 @@ runbooks/             the team's written procedures, as plain Markdown
 voices/               one folder per voice
 web/                  the screen (React, Vite, Tailwind)
 tests/                the tests
-docs/                 PLAN.md (hackathon day), ROADMAP.md (the long-term goal), ARCHITECTURE.md (how it is built)
+docs/                 PLAN.md (hackathon day), ROADMAP.md (the long-term goal), BLUEPRINT.md (how to build each repository), ARCHITECTURE.md (how this one is built)
 ```
 
 ## Change things without touching code
@@ -189,7 +189,7 @@ This repository follows Gitflow: `main` is released code, `develop` is the next 
 
 ## Where this is going
 
-One repository and ten agents today. The long-term goal is nine repositories and about twenty-two agents in seven squads, each added only when it is needed. The repositories, the branch rules, every agent and how they work together are in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+One repository and ten agents today. The long-term goal is nine repositories and about twenty-two agents in seven squads, each added only when it is needed. The repositories, the branch rules, every agent and how they work together are in [`docs/ROADMAP.md`](docs/ROADMAP.md). How to build each repository, step by step, is in [`docs/BLUEPRINT.md`](docs/BLUEPRINT.md).
 
 ## What is not done yet
 

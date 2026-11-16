@@ -61,7 +61,7 @@ Suppressions are rare and each one says why: three `# nosec` comments in [`aegis
 
 They are free on public repositories and take a minute:
 
-1. **Branch protection on `main` and `develop`:** require a pull request, one approval, review from code owners, and the `ci` and `security` checks to pass.
+1. **Branch protection on `main` and `develop`:** require a pull request and the `ci` and `security` checks to pass. Add one approval and code owner review once there is a second maintainer; GitHub does not let you approve your own pull request, so requiring it earlier locks you out. The exact settings are in [`docs/BLUEPRINT.md`](docs/BLUEPRINT.md), section 1.3.
 2. **Dependabot alerts** and **Dependabot security updates.**
 3. **Secret scanning** with **push protection**, so a key is stopped before it lands.
 4. **Private vulnerability reporting.**

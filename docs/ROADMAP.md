@@ -10,6 +10,8 @@ Where Aegis is going: from one repository and ten agents today, to a small famil
 | How agents talk | function calls inside one process | separate services speaking open protocols (A2A between agents, MCP to tools) |
 | Where it runs | your laptop | Kubernetes, deployed by GitOps |
 
+This document is the what and the when. The how is in [`BLUEPRINT.md`](BLUEPRINT.md): what must exist first, the folder layout of every repository, where each of today's files ends up, and how you know each step is finished.
+
 One rule keeps this honest: **a repository or an agent is added only when its trigger is met.** Each one costs something to run, to secure and to explain. The tables below give the trigger for every one.
 
 ## The picture
@@ -88,7 +90,7 @@ Every repository has the same two long-lived branches and the same three short-l
 The rules, the same in every repository:
 
 1. Nobody pushes straight to `main` or `develop`. Every change is a pull request.
-2. A pull request needs the `ci` and `security` checks green and one approval.
+2. A pull request needs the `ci` and `security` checks green, and one approval from someone other than its author once there is a second maintainer.
 3. Changes to the policy file, the security code or the pipelines need the owner's approval (`.github/CODEOWNERS`).
 4. Versions follow semantic versioning: breaking change, new feature, fix.
 5. Dependabot opens its pull requests against `develop`. A security fix for something already live goes through a `hotfix/` branch.
