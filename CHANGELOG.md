@@ -2,6 +2,16 @@
 
 Every release, newest first. Versions follow semantic versioning.
 
+## Unreleased
+
+- **A model on your laptop:** a "Local model" entry in the model toggle, through Ollama. No cloud, no key. `pip install -e ".[local]"`, a table in the README for which model fits your memory.
+- **`aegis models --test`** (`make models`): asks every ready model one tiny question in the same fixed shape the agents use, and says ANSWERED or FAILED with the reason. `aegis models` alone says what each model is still missing.
+- **The room wakes up by itself:** in live mode, `AEGIS_WATCH_EVERY` looks at the live system every few seconds and opens an incident for anything unhealthy. It stays quiet for a while after an incident (`AEGIS_WATCH_QUIET`), so a no-go is not asked again and again. The screen follows any incident it did not start itself, including ones from the alert webhook.
+- **`make shop`, `make live`, `make drills`:** start the OpenTelemetry Demo shop (numbers every 15 seconds instead of every minute), run the war room against it, and run the simulated incidents next to it on port 8001 with their own audit log.
+- **`.env` is read by itself.** No more `source .env` in every new terminal.
+- **Fixes:** no data from the live system no longer reads as "healthy" to the verifier; "Scan the live system" says the shop is not reachable instead of a bare error; model settings keep their numbers and true / false as they are.
+- **Docs:** a plan for a solo hackathon day with a "before the day" list, and a demo script that works with the live shop and the simulated incidents side by side.
+
 ## 0.1.0 (16 November 2026)
 
 The first working version.

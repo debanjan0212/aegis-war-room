@@ -1,0 +1,10 @@
+# Copied by `make shop` into the OpenTelemetry Demo as src/otel-collector/otelcol-config-extras.yml,
+# the file the demo keeps empty for exactly this kind of change. It is only copied while that file is still empty.
+#
+# The demo turns traces into request and error numbers once a minute. That is fine for dashboards, but on stage
+# it means waiting minutes for the war room to see a failure, and minutes more to see the recovery.
+# Every 15 seconds makes both show up in about a minute.
+
+connectors:
+  span_metrics:
+    metrics_flush_interval: 15s

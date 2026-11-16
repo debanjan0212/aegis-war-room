@@ -14,6 +14,20 @@ models:
   - id: offline
     label: Offline rules (no cloud, no key)
 
+  # A model running on your own laptop through Ollama (https://ollama.com). No cloud, no key, nothing leaves the machine.
+  # Pick the model with OLLAMA_MODEL, then `ollama pull` it. See "Use a model on your laptop" in the README.
+  - id: local
+    label: Local model on this laptop (Ollama)
+    provider: ollama
+    model: ${OLLAMA_MODEL}
+    needs: [OLLAMA_MODEL]
+    options:
+      temperature: 0            # the same question gets the same answer
+      num_ctx: 8192             # room for the evidence; Ollama's default is smaller and cuts it off silently
+      keep_alive: 30m           # keep the model loaded between incidents, so the first agent is not slow
+      client_kwargs:
+        timeout: 120            # seconds; a stuck local model must not hang an incident
+
   - id: azure
     label: Azure OpenAI
     provider: azure_openai

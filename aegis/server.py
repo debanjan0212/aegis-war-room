@@ -5,7 +5,10 @@ from __future__ import annotations
 import asyncio
 import hmac
 import json
+import logging
 import threading
+import time
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -20,8 +23,51 @@ from .security import drill
 from .settings import ROOT, env
 from .voices import list_voices
 
-app = FastAPI(title="Aegis War Room", docs_url=None, redoc_url=None, openapi_url=None)
 _scan: dict = {"status": "never run", "report": None}
+log = logging.getLogger("aegis")
+
+
+def watch_every() -> float:
+    """Live mode only: how often (seconds) to look at the real system by itself. 0 = only when someone presses scan."""
+    every = float(env("AEGIS_WATCH_EVERY", "0") or 0)
+    return every if every > 0 and get_connector().name != "simulator" else 0
+
+
+def _recently_handled(service: str, quiet: float) -> bool:
+    """After a no-go, or while the numbers settle after a fix, the same alert must not reopen the room every few seconds."""
+    last = [i.events[-1]["ts"] if i.events else i.created for i in store.INCIDENTS.values() if i.alert.get("service") == service]
+    return bool(last) and time.time() - max(last) < quiet
+
+
+def watch_once(quiet: float) -> list[str]:
+    """One look at the live system. Opens an incident for anything unhealthy that is not already being handled."""
+    alerts = [a for a in get_connector().detect() if not _recently_handled(a["service"], quiet)]
+    return [_open(alert, default_model()).id for alert in alerts]
+
+
+def _watch(every: float) -> None:
+    """Look at the live system every few seconds and open an incident by itself when something is unhealthy."""
+    quiet = float(env("AEGIS_WATCH_QUIET", "180"))  # seconds after an incident's last step before the same service may reopen
+    complained = False
+    while True:
+        time.sleep(every)
+        try:
+            watch_once(quiet)
+            complained = False
+        except Exception as err:  # noqa: BLE001 - the watcher must keep watching, and say once (not every tick) why it cannot
+            if not complained:
+                log.warning("watcher cannot read the live system: %s", err)
+            complained = True
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if every := watch_every():
+        threading.Thread(target=_watch, args=(every,), daemon=True).start()
+    yield
+
+
+app = FastAPI(title="Aegis War Room", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
 
 def guard(authorization: str = Header("")) -> None:
@@ -59,6 +105,7 @@ def config() -> dict:
         "default_model": default_model(),
         "scenarios": scenarios,
         "voices": list_voices(),
+        "watch_every": watch_every(),
     }
 
 
@@ -122,7 +169,11 @@ def trigger(body: Trigger) -> dict:
 @app.post("/api/incidents/scan-live", dependencies=[Depends(guard)])
 def scan_live(body: ModelChoice) -> dict:
     model = _model(body.model)
-    return {"ids": [_open(alert, model).id for alert in get_connector().detect()]}
+    try:
+        alerts = get_connector().detect()
+    except Exception as err:  # noqa: BLE001 - say what is wrong on screen instead of a bare 500
+        raise HTTPException(502, f"Cannot read the live system. Is the demo shop running? ({type(err).__name__})") from err
+    return {"ids": [_open(alert, model).id for alert in alerts]}
 
 
 @app.post("/api/alerts", dependencies=[Depends(guard)])

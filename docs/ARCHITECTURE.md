@@ -12,6 +12,7 @@ One process, three layers. Nothing here needs a cloud account to run.
                                │ brain.py    the model toggle  │        └─────────────────────┘
                                │ store.py    feed + audit log  │        ┌─────────────────────┐
                                └───────────────────────────────┘ <----> │ offline rules, or   │
+                                                                        │ Ollama (laptop), or │
                                                                         │ Azure/Bedrock/Vertex│
                                                                         └─────────────────────┘
 ```
@@ -19,6 +20,8 @@ One process, three layers. Nothing here needs a cloud account to run.
 ## The flow
 
 [`aegis/flow.py`](../aegis/flow.py) is a LangGraph graph. Each agent is one step. The steps share one piece of state (the alert, the findings so far, the plan, the decision), so agents "talk" by adding to it, and everything they say out loud also goes to the screen and the audit log.
+
+In live mode an incident can also start by itself: with `AEGIS_WATCH_EVERY` set, `server.py` looks at the live system every few seconds and opens an incident for anything unhealthy that is not already being handled. The screen follows the newest open incident whenever it is not busy with one.
 
 The go / no-go is a real pause, not a flag in a loop. The graph stops at `interrupt()` and its state is saved. Nothing after that point can run until `flow.decide()` resumes it with the human's answer.
 
@@ -28,7 +31,7 @@ Every file in [`aegis/agents/`](../aegis/agents/) has the same shape:
 
 | Part | What it is |
 |---|---|
-| `PROMPT` | What the agent is asked when a cloud model is switched on |
+| `PROMPT` | What the agent is asked when a model (laptop or cloud) is switched on |
 | `offline()` | The built-in rules used when the toggle is "offline", or when the model fails |
 | `run()` | The step itself: gather facts, ask the brain, tell the room, pass results on |
 
@@ -38,7 +41,7 @@ Two agents never use a model, on purpose: the **defender** (a guard must not be 
 
 ## The model toggle
 
-[`aegis/brain.py`](../aegis/brain.py) has one method, `Brain.ask(prompt, shape, facts, offline_rules)`. It reads [`config/models.yaml`](../config/models.yaml) and uses LangChain's `init_chat_model`, which builds an Azure OpenAI, Bedrock or Vertex AI client from a provider name. Adding a provider is adding a block to that file.
+[`aegis/brain.py`](../aegis/brain.py) has one method, `Brain.ask(prompt, shape, facts, offline_rules)`. It reads [`config/models.yaml`](../config/models.yaml) and uses LangChain's `init_chat_model`, which builds an Ollama (laptop), Azure OpenAI, Bedrock or Vertex AI client from a provider name. Adding a provider is adding a block to that file. `aegis models --test` asks every ready model one tiny question in the same fixed-shape way the agents do, so a model that cannot answer in shape shows up before the demo, not during it.
 
 ## Connectors
 
@@ -67,4 +70,4 @@ detect()  # alerts for anything unhealthy right now
 
 - Incidents are held in memory, and the graph's saved state too. Swapping `InMemorySaver` for the Postgres saver in `flow.py` makes open incidents survive a restart.
 - The live feed is server-sent events read from a list. It is enough for one room. Many viewers would want a message bus.
-- The runbook agent matches words; it is not a vector search. With a cloud model switched on, the model picks from the list instead.
+- The runbook agent matches words; it is not a vector search. With a model switched on, the model picks from the list instead.

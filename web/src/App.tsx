@@ -91,17 +91,35 @@ export default function App() {
     if (result.closing) say(result.closing);
   }, [result.closing]);
 
+  const follow = (id: string) => {
+    setSteps([]);
+    setGate(null);
+    setResult({});
+    setArmed(false);
+    setStatus("investigating");
+    setIncidentId(id);
+  };
+
   const open = (work: () => Promise<string | undefined>) =>
     attempt(async () => {
       const id = await work();
       if (!id) return setProblem("Nothing is unhealthy right now. Break something first, wait a minute, then scan again.");
-      setSteps([]);
-      setGate(null);
-      setResult({});
-      setArmed(false);
-      setStatus("investigating");
-      setIncidentId(id);
+      follow(id);
     });
+
+  // Incidents also open without a click: the live watcher, or an alert webhook. When the room is not busy, show the newest one.
+  useEffect(() => {
+    const timer = setInterval(async () => {
+      if (OPEN.includes(now.current.status)) return; // never pull anyone away from an incident that is still open
+      try {
+        const newest = (await api.incidents()).find((row) => OPEN.includes(row.status));
+        if (newest && newest.id !== now.current.incidentId) follow(newest.id);
+      } catch {
+        // the server may be restarting; the next tick tries again
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   const decide = (decision: "go" | "no-go", note = "") =>
     attempt(async () => {
