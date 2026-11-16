@@ -1,0 +1,35 @@
+{
+  "id": "bad-deploy",
+  "order": 3,
+  "title": "A release broke checkout",
+  "story": "A new checkout version went out six minutes before the errors started. The right fix is a rollback, which the policy does not let agents do, so Aegis must hand over to a human.",
+  "alert": {
+    "name": "CheckoutErrorRateHigh",
+    "service": "checkout",
+    "severity": "critical",
+    "summary": "Checkout service error rate is above 15% for 5 minutes."
+  },
+  "during": {
+    "metrics": {"error_rate": 0.18, "p95_ms": 950, "requests_per_min": 610, "baseline_error_rate": 0.003, "baseline_p95_ms": 240},
+    "logs": [
+      "ERROR checkout: panic: nil pointer in shipping quote handler (version v1.8.0)",
+      "ERROR checkout: failed to place order: internal error",
+      "INFO checkout: starting version v1.8.0",
+      "WARN frontend: checkout returned 500"
+    ],
+    "traces": [
+      "checkout/PlaceOrder 0.9s ERROR: fails inside checkout before any downstream call",
+      "frontend POST /api/checkout 1.0s ERROR"
+    ]
+  },
+  "after": {
+    "metrics": {"error_rate": 0.18, "p95_ms": 950, "requests_per_min": 610, "baseline_error_rate": 0.003, "baseline_p95_ms": 240},
+    "logs": [],
+    "traces": []
+  },
+  "changes": [
+    {"id": "chg-1", "minutes_before_alert": 6, "type": "deploy", "target": "checkout", "service": "checkout", "detail": "checkout v1.8.0 rolled out (was v1.7.4)", "by": "ci"},
+    {"id": "chg-2", "minutes_before_alert": 130, "type": "config", "target": "shipping", "service": "shipping", "detail": "rate table refreshed", "by": "platform-team"}
+  ],
+  "fix": {"action": "rollback_deployment", "target": "checkout", "value": ""}
+}

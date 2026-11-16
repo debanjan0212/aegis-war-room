@@ -1,0 +1,13 @@
+# Copy this folder, rename it (small letters and dashes, for example "my-voice"),
+# put the recording next to this file as sample.wav, and fill in the lines below.
+name: Your name here
+description: One line shown in the voice menu.
+engine: clone            # a real person's voice, made from their own recording
+sample: sample.wav       # one to two minutes, quiet room, no music
+# Required. Written by the person whose voice it is. A cloned voice without this line is never loaded.
+consent: ""
+# Used until the cloning engine is installed, and whenever it is unavailable:
+lang: en-GB
+prefer: []
+rate: 1.0
+pitch: 1.0

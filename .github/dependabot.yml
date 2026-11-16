@@ -1,0 +1,26 @@
+# Dependabot opens a pull request when a dependency has an update or a security fix.
+# That is the "fix" half of scanning: the scanners find the problem, this proposes the change.
+# Its pull requests go to develop, like every other change (Gitflow).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /web
+    target-branch: develop
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+  # keeps the commit pins in .github/workflows current
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly

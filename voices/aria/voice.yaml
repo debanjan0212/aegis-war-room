@@ -1,0 +1,8 @@
+# A stock voice that ships with the browser. Nothing is cloned.
+name: Aria
+description: Clear female voice. Built into the browser, free, works offline.
+engine: browser
+lang: en-GB
+prefer: ["Google UK English Female", "Microsoft Sonia", "Microsoft Libby", "Serena", "Kate", "Samantha"]
+rate: 1.0
+pitch: 1.0
