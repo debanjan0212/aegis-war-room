@@ -3,10 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import Boot from "./components/Boot";
 import Composer from "./components/Composer";
+import Readouts from "./components/Readouts";
 import Shelter, { type Mood } from "./components/Shelter";
 import Stream, { DecisionCard, type Entry } from "./components/Stream";
 import { CREW, OPEN, bayState } from "./stations";
 import type { Config, Gate, Result, Step } from "./types";
+import { setSounds, sfx } from "./sfx";
 import { canListen, intentOf, listenOnce, onSpeaking, speak, startListening, stopSpeaking } from "./voice";
 
 type NewEntry = Entry extends unknown ? (Entry extends infer E ? (E extends Entry ? Omit<E, "id" | "ts"> : never) : never) : never;
@@ -79,6 +81,7 @@ export default function App() {
   };
 
   useEffect(() => onSpeaking(setSpeakingNow), []);
+  useEffect(() => setSounds(soundOn), [soundOn]);
 
   useEffect(() => {
     attempt("Loading the room", async () => {
@@ -95,7 +98,12 @@ export default function App() {
     const feed = new EventSource(`/api/incidents/${incidentId}/stream`);
     feed.addEventListener("step", (event) => {
       const step: Step = JSON.parse((event as MessageEvent).data);
-      setSteps((before) => (before.some((old) => old.seq === step.seq) ? before : [...before, step]));
+      setSteps((before) => {
+        if (before.some((old) => old.seq === step.seq)) return before;
+        if (["block", "error"].includes(step.kind)) sfx.blocked();
+        else sfx.blip();
+        return [...before, step];
+      });
     });
     feed.addEventListener("status", (event) => {
       const update = JSON.parse((event as MessageEvent).data);
@@ -117,11 +125,15 @@ export default function App() {
 
   // The two moments Aegis speaks without being asked: asking for your decision, and closing the incident.
   useEffect(() => {
-    if (status === "awaiting_decision" && gate) say(gate.briefing);
+    if (status === "awaiting_decision" && gate) {
+      sfx.alert();
+      say(gate.briefing);
+    }
   }, [status, gate?.plan_hash]);
   useEffect(() => {
     if (!result.closing) return;
     add({ kind: "outcome", status: now.current.status, result }); // the outcome stays in the conversation where it happened
+    if (now.current.status === "resolved") sfx.resolved();
     say(result.closing);
   }, [result.closing]);
 
@@ -202,6 +214,7 @@ export default function App() {
     });
 
   const talk = (text: string) => {
+    sfx.send();
     add({ kind: "you", text });
     const { status, gate, armed, model } = now.current;
     const decision = intentOf(text);
@@ -275,15 +288,18 @@ export default function App() {
     if (operator) localStorage.setItem("aegis_by", operator);
     setAwake(true);
     setSoundOn(true);
+    setSounds(true);
     now.current.soundOn = true;
     setWaking(true);
-    setTimeout(() => setWaking(false), 2200);
+    sfx.boot();
+    CREW.forEach((_, i) => setTimeout(() => sfx.online(i), 900 + i * 140));
+    setTimeout(() => setWaking(false), 2700);
     const crew = live
       ? config.watch_every
         ? `I'm watching ${config.source} every ${config.watch_every} seconds. The crew sleeps until something breaks.`
         : `I'm connected to ${config.source}. Ask me to scan it whenever you like.`
       : "Your crew of ten is asleep, and nothing is broken.";
-    setTimeout(() => say(`${greeting(operator)} ${crew} What would you like me to do?`), 1500);
+    setTimeout(() => say(`${greeting(operator)} ${crew} What would you like me to do?`), 2600);
   };
 
   const explainBay = (id: string) => {
@@ -307,16 +323,24 @@ export default function App() {
           ask("What are you?"),
         ];
 
+  const voiceName = config.voices.find((voice) => voice.id === voiceId)?.name ?? voiceId;
+  const toneOf: Record<Mood, string> = { asleep: "#7f9bbd", idle: "#4ff3ff", yourcall: "#ffc24d", resolved: "#3df5a0", blocked: "#ff3d5a" };
+
   return (
     <div className="flex min-h-screen flex-col lg:h-screen">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-glass px-4 py-2.5">
-        <div className="mr-auto flex items-baseline gap-3">
-          <span className="font-display text-2xl font-bold tracking-wide text-aegis">{name}</span>
-          <span className="text-sm text-dim">{live ? `Live: ${config.source}` : "Simulator: nothing real can break"}</span>
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-void/60 px-4 py-2.5 backdrop-blur">
+        <div className="mr-auto flex items-center gap-4">
+          <span className="font-display text-2xl font-black tracking-[0.22em] text-aegis glow-text">{name.toUpperCase()}</span>
+          <span className="hidden items-center gap-2 sm:flex">
+            <span className="live-dot" style={{ background: toneOf[mood], boxShadow: `0 0 10px ${toneOf[mood]}` }} />
+            <span className="hud-label" style={{ color: toneOf[mood] }}>
+              {line}
+            </span>
+          </span>
         </div>
-        <label className="text-sm text-dim">
+        <label>
           <span className="sr-only">Model</span>
-          <select className="control text-sm" value={model} onChange={(event) => setModel(event.target.value)} title="Which model the crew uses">
+          <select className="hud-select max-w-64" value={model} onChange={(event) => setModel(event.target.value)} title="Which model the crew uses">
             {config.models.map((option) => (
               <option key={option.id} value={option.id} disabled={!option.ready} title={option.missing.join(", ")}>
                 {option.label}
@@ -325,10 +349,10 @@ export default function App() {
             ))}
           </select>
         </label>
-        <label className="text-sm text-dim">
+        <label>
           <span className="sr-only">Voice</span>
           <select
-            className="control text-sm"
+            className="hud-select"
             value={voiceId}
             onChange={(event) => {
               setVoiceId(event.target.value);
@@ -343,23 +367,30 @@ export default function App() {
           </select>
         </label>
         <button
-          className="control text-sm"
+          className="hud-btn"
           aria-pressed={soundOn}
           onClick={() => {
             if (soundOn) stopSpeaking();
             setSoundOn(!soundOn);
           }}
         >
-          {soundOn ? "Voice on" : "Voice off"}
+          {soundOn ? "Sound on" : "Sound off"}
         </button>
-        <button className="control text-sm" aria-pressed={alwaysOn} disabled={!canListen()} onClick={() => setAlwaysOn(!alwaysOn)} title="Everything it hears is treated as a message">
+        <button className="hud-btn" aria-pressed={alwaysOn} disabled={!canListen()} onClick={() => setAlwaysOn(!alwaysOn)} title="Everything it hears is treated as a message">
           {alwaysOn ? "Always listening" : "Listen on request"}
         </button>
       </header>
 
-      <main className="grid flex-1 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,32rem)]">
+      <main className="grid flex-1 grid-cols-[minmax(0,1fr)] lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,31rem)]">
         <section className="relative flex flex-col items-center justify-center px-2 py-4 lg:min-h-0" aria-label="The shelter">
-          <div className="aspect-[6/5] w-full max-w-[min(100%,calc((100vh-9rem)*1.2))]">
+          <Readouts
+            room={room}
+            operator={by}
+            source={live ? config.source : "Simulator, nothing real can break"}
+            voice={soundOn ? voiceName : "Muted"}
+            last={awake ? (steps[steps.length - 1] ?? null) : null}
+          />
+          <div className="aspect-[6/5] w-full max-w-[min(100%,calc((100vh-11rem)*1.15))]">
             <Shelter
               room={room}
               name={name}
@@ -372,22 +403,24 @@ export default function App() {
               onBay={explainBay}
             />
           </div>
-          <p className="text-sm text-dim">Tap the core to talk. Tap any bay to hear what that agent does.</p>
+          <p className="hud-label text-center lg:absolute lg:bottom-4 lg:left-4 lg:max-w-[15rem] lg:text-left">Tap the core to talk. Tap any bay to hear what that agent does.</p>
         </section>
 
-        <aside className="flex flex-col border-glass lg:min-h-0 lg:border-l">
+        <aside className="flex flex-col border-line bg-void/40 lg:min-h-0 lg:border-l" aria-label="Comms">
+          <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
+            <span className="live-dot" />
+            <span className="font-display text-sm font-bold tracking-[0.2em] text-text">COMMS</span>
+            <span className="hud-label ml-auto">{entries.length + steps.length} messages</span>
+          </div>
           <div ref={bay} className="flex-1 space-y-3 p-4 lg:overflow-y-auto">
             {entries.length === 0 && steps.length === 0 && (
-              <p className="text-dim">
-                Talk to {name} here. Ask it to run a drill, scan the code, attack its own defences, or tell you who is working.
-              </p>
+              <p className="font-mono text-sm text-dim">&gt; Channel open. Talk to {name} here: run a drill, scan the code, attack its own defences, or ask who is working.</p>
             )}
             <Stream entries={entries} steps={steps} />
             {status === "awaiting_decision" && gate && (
               <DecisionCard
                 gate={gate}
                 armed={armed}
-                busy={false}
                 by={by}
                 onBy={(value) => {
                   setBy(value);
@@ -403,7 +436,7 @@ export default function App() {
         </aside>
       </main>
 
-      {!awake && <Boot name={name} known={by || config.operator} onWake={wake} />}
+      {!awake && <Boot name={name} known={by || config.operator} crew={CREW.length - 1} onWake={wake} />}
     </div>
   );
 }

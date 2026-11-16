@@ -70,7 +70,7 @@ make serve                     # builds the screen and starts everything
 
 Open **http://localhost:8000** in Chrome and press **Wake Aegis**. The core lights up, the crew comes online one bay at a time, and Aegis greets you by name, out loud. Put `AEGIS_OPERATOR_NAME=YourName` in `.env` so it never has to ask.
 
-- **The shelter** is the whole crew around Aegis. Each bay says what that agent is doing right now: asleep, standing by, working, done, blocked, or your call. Tap a bay to hear what that agent does.
+- **The shelter** is the whole crew around Aegis, each agent in its own colour. Each bay says what that agent is doing right now: asleep (dim), standing by, working (spinning, with data pulses flowing to the core), done, blocked (red), or your call (gold). Tap a bay to hear what that agent does. The readouts show the clock, how many agents are working, done and asleep, and the last transmission.
 - **Talk to it** in your own words, typed or by the microphone button (or tap the core): "run the payment drill", "who is working?", "scan the code", "attack your defences", "what are you?". The chips under the conversation are shortcuts.
 - **The conversation** on the right holds your messages, Aegis's replies, every agent's report and the go / no-go, in one thread.
 
