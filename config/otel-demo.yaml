@@ -1,0 +1,46 @@
+# Settings for the live connector (AEGIS_SOURCE=otel-demo).
+# The metric names below are the ones the OpenTelemetry Demo's own Grafana
+# dashboards use. If your version differs, change the queries here, not the code.
+
+prometheus_url: http://localhost:9090
+
+# Path to the demo's flag file on this machine, for example
+# /home/you/opentelemetry-demo/src/flagd/demo.flagd.json
+# (or set the OTEL_DEMO_FLAG_FILE environment variable).
+flag_file: ""
+
+# $service is replaced with the service name, for example "payment".
+queries:
+  error_rate: >-
+    sum(rate(traces_span_metrics_calls_total{service_name="$service",status_code="STATUS_CODE_ERROR"}[2m]))
+    / sum(rate(traces_span_metrics_calls_total{service_name="$service"}[2m]))
+  p95_ms: >-
+    histogram_quantile(0.95, sum by (le)
+    (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="$service"}[2m])))
+  requests_per_min: >-
+    sum(rate(traces_span_metrics_calls_total{service_name="$service"}[2m])) * 60
+
+# Used by "Scan live system": error rate per service.
+detect_query: >-
+  sum by (service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[2m]))
+  / sum by (service_name) (rate(traces_span_metrics_calls_total[2m]))
+detect_threshold: 0.05
+
+# Which service each failure flag hurts. Helps the change agent connect a flag to an alert.
+flag_services:
+  paymentFailure: payment
+  paymentUnreachable: payment
+  cartFailure: cart
+  failedReadinessProbe: cart
+  productCatalogFailure: product-catalog
+  productCatalogLockContention: product-catalog
+  recommendationCacheFailure: recommendation
+  adFailure: ad
+  adHighCpu: ad
+  adManualGc: ad
+  emailMemoryLeak: email
+  kafkaQueueProblems: fraud-detection
+  kafkaConsumerDead: fraud-detection
+  imageSlowLoad: frontend
+  loadGeneratorFloodHomepage: frontend
+  intlShippingSlowdown: shipping

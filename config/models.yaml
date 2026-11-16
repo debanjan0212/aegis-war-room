@@ -1,0 +1,35 @@
+# The model toggle.
+#
+# Each entry below shows up in the dropdown on screen. Switching cloud is
+# picking a different entry: no code changes. To add a model, copy an entry.
+#
+#   provider  the LangChain provider name (azure_openai, bedrock_converse, google_vertexai, ...)
+#   model     the model or deployment name; ${NAME} is read from your environment
+#   needs     environment variables that must be set before the entry is "ready"
+#   options   extra settings passed to the model as they are
+
+default: offline
+
+models:
+  - id: offline
+    label: Offline rules (no cloud, no key)
+
+  - id: azure
+    label: Azure OpenAI
+    provider: azure_openai
+    model: ${AZURE_OPENAI_DEPLOYMENT}
+    needs: [AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_DEPLOYMENT, OPENAI_API_VERSION]
+    options:
+      azure_deployment: ${AZURE_OPENAI_DEPLOYMENT}
+
+  - id: bedrock
+    label: AWS Bedrock
+    provider: bedrock_converse
+    model: ${BEDROCK_MODEL_ID}
+    needs: [BEDROCK_MODEL_ID, AWS_REGION]   # plus your usual AWS credentials
+
+  - id: vertex
+    label: Google Vertex AI
+    provider: google_vertexai
+    model: ${VERTEX_MODEL}
+    needs: [VERTEX_MODEL, GOOGLE_CLOUD_PROJECT]   # plus Google application default credentials

@@ -1,0 +1,7 @@
+# Who must approve changes. The lines lower down win.
+*                       @debanjan0212
+
+# The rules the agents obey, the code that enforces them, and the pipelines that check everything.
+/config/policy.yaml     @debanjan0212
+/aegis/security/        @debanjan0212
+/.github/               @debanjan0212

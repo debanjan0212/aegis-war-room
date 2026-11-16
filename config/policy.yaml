@@ -1,0 +1,49 @@
+# What the agents are allowed to do.
+#
+# This file is the law. The planner can only choose from the enabled actions,
+# the defender checks every plan against it, and the executor checks again
+# before it acts. Nothing here is a suggestion to the AI model: it is enforced
+# in code (aegis/security/policy.py).
+
+actions:
+  set_feature_flag:
+    enabled: true
+    risk: low
+    description: Switch a feature flag off
+    # Agents may only turn these flags OFF. They can never turn a failure on.
+    targets: [paymentFailure, paymentUnreachable, cartFailure, productCatalogFailure,
+              recommendationCacheFailure, adFailure, adHighCpu, adManualGc, emailMemoryLeak,
+              kafkaQueueProblems, imageSlowLoad, intlShippingSlowdown, loadGeneratorFloodHomepage]
+    values: ["off"]
+
+  restart_service:
+    enabled: false          # switch on only when you have a connector that can do it safely
+    risk: medium
+    description: Restart one service
+    targets: [payment, cart, checkout, recommendation, ad, email, shipping, frontend]
+    values: [""]
+
+  rollback_deployment:
+    enabled: false          # planned: rollback as a GitOps pull request
+    risk: medium
+    description: Roll a service back to its previous version
+    targets: [payment, cart, checkout, recommendation, ad, email, shipping, frontend]
+    values: [""]
+
+  escalate:
+    enabled: true
+    risk: none
+    description: Page a human and change nothing
+    targets: [""]
+    values: [""]
+
+# Names an action must never touch, whatever else is allowed.
+protected_targets: [flagd, astronomy-db, valkey-cart, kafka, otel-collector, prometheus, kube-system, prod]
+
+limits:
+  min_confidence: 0.6     # below this the defender marks the plan "caution"
+  max_replans: 1          # how many times the planner may try again after a block
+
+recovery:
+  error_rate_below: 0.05  # the verifier calls it recovered under this
+  p95_ms_below: 1000
