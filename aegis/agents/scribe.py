@@ -1,5 +1,10 @@
-"""Scribe agent: closes the incident with a postmortem draft and a message for the team."""
+"""Scribe agent: closes the incident with a postmortem draft and a message for the team.
 
+A model may write the postmortem's story, but what was done, and the message that leaves the room, come from the
+record only. A real 7B model once told the team a fix had been applied when the defender had blocked it.
+"""
+
+import re
 import time
 
 from pydantic import BaseModel, Field
@@ -9,9 +14,9 @@ from ..security import policy
 from .base import brain, pace, say
 
 PROMPT = (
-    "You are the scribe agent. Write (1) a short postmortem in Markdown with the headings Summary, Timeline, "
-    "Root cause, What was done and Follow-ups, and (2) a stakeholder update of at most three plain sentences for "
-    "the incident channel. Use only facts from the data. Do not invent numbers, names or times."
+    "You are the scribe agent. Write a short postmortem in Markdown with the headings Summary, Timeline, "
+    "Root cause, What was done and Follow-ups. Under What was done, copy what_was_done exactly. "
+    "Use only facts from the data. Do not invent numbers, names, times or actions."
 )
 
 WHAT_WAS_DONE = {
@@ -43,7 +48,6 @@ FOLLOW_UPS = {
 
 class Report(BaseModel):
     postmortem: str = Field(description="Markdown with the headings Summary, Timeline, Root cause, What was done, Follow-ups")
-    stakeholder_update: str = Field(description="at most three plain sentences")
 
 
 def outcome_of(state: dict) -> str:
@@ -56,11 +60,16 @@ def outcome_of(state: dict) -> str:
 
 def _fill(template: str, context: dict) -> str:
     plan, decision = context["plan"], context.get("decision") or {}
+    root = plan["root_cause"].strip()
+    root = root if root.endswith((".", "!", "?")) else f"{root}."  # models do not always end with a full stop
+    reason = plan["reason"]
+    if context.get("blocked_because"):  # the plan's own reason argues for a fix that never ran; say why it did not
+        reason = f"The defender blocked the proposed fix ({policy.describe(plan)}): {'; '.join(context['blocked_because'])}."
     return template.format(
         title=context["title"],
         service=context["incident"]["service"],
-        root=plan["root_cause"],
-        reason=plan["reason"],
+        root=root,
+        reason=reason,
         action=policy.describe(plan),
         by=decision.get("by") or "The approver",
         note=decision.get("note") or "(none)",
@@ -90,7 +99,15 @@ def offline(context: dict) -> Report:
             *[f"- {item}" for item in follow_ups],
         ]
     )
-    return Report(postmortem=postmortem, stakeholder_update=_fill(UPDATE[outcome], context))
+    return Report(postmortem=postmortem)
+
+
+def pin_what_was_done(postmortem: str, facts: str) -> str:
+    """Replace whatever the model wrote under "What was done" with the record. Add the section if it is missing."""
+    section = re.compile(r"^(#+[ \t]*What was done[ \t]*)$.*?(?=^#+[ \t]|\Z)", re.M | re.S | re.I)
+    if section.search(postmortem):
+        return section.sub(lambda m: f"{m.group(1)}\n{facts}\n\n", postmortem, count=1).rstrip() + "\n"
+    return f"{postmortem.rstrip()}\n\n## What was done\n{facts}\n"
 
 
 def run(state: dict) -> dict:
@@ -106,15 +123,19 @@ def run(state: dict) -> dict:
         "execution": state.get("execution"),
         "verification": state.get("verification"),
         "suspect": next((f["suspect"] for f in state["findings"] if f.get("suspect")), None),
+        "blocked_because": [c["check"] for c in state["defender"]["checks"] if not c["ok"]]
+        if state["defender"]["verdict"] == "block"
+        else [],
         "timeline": [
             f"- {time.strftime('%H:%M:%S', time.localtime(e['ts']))} {e['agent']}: {e['text']}" for e in incident.events
         ],
     }
+    context["what_was_done"] = _fill(WHAT_WAS_DONE[outcome], context)
     answer, source = brain(state).ask(PROMPT, Report, context, offline)
     report = {
         "outcome": outcome,
-        "postmortem": answer.postmortem,
-        "stakeholder_update": answer.stakeholder_update,
+        "postmortem": pin_what_was_done(answer.postmortem, context["what_was_done"]),
+        "stakeholder_update": _fill(UPDATE[outcome], context),  # leaves the room, so it states only what the record shows
         "closing": CLOSING[outcome].format(service=state["triage"]["service"].replace("-", " ")),
     }
     pace()

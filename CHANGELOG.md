@@ -12,6 +12,8 @@ Every release, newest first. Versions follow semantic versioning.
 - **Fixes:** no data from the live system no longer reads as "healthy" to the verifier; "Scan the live system" says the shop is not reachable instead of a bare error; model settings keep their numbers and true / false as they are.
 - **The defender blocks a change the evidence does not point at.** It was only a caution before, so a human was asked to approve it. The offline rules never proposed one, but a real 7B model did: for a bad release it proposed switching off an unrelated flag. The planner's prompt also now says to escalate releases and not to repeat a blocked plan.
 - **The evidence check compares the kind of change, not just the name.** A flag plan needs a suspected flag; a release of `checkout` no longer makes a flag called `checkout` look justified. The planner is now told plainly that its plan was blocked and which rule it broke (a 7B model read the bare rule names as permission), and to keep its answers short.
+- **The team hears only what the record shows.** The message for the team, and the "What was done" part of the postmortem, now come from the record, never from the model: a 7B model told the team a fix had been applied when the defender had blocked it. The model still writes the rest of the postmortem. When the defender blocked the fix, the write-up says so and why.
+- **The runbook agent is told the kind of suspected change** (a release, a flag) as its own fact, so a model picks the release runbook for a bad release.
 - **Docs:** a plan for a solo hackathon day with a "before the day" list, and a demo script that works with the live shop and the simulated incidents side by side.
 
 ## 0.1.0 (16 November 2026)

@@ -8,9 +8,15 @@ from ..settings import ROOT
 from .base import brain, pace, say
 
 PROMPT = (
-    "You are the runbook agent. From the list of runbooks, pick the one that best fits the incident and findings. "
-    "Give its file name exactly as listed, or an empty string if none fits."
+    "You are the runbook agent. From the list of runbooks, pick the one that best fits the incident. "
+    "The suspected change matters most: pick the runbook written for that kind of change, even if another one "
+    "shares more words with the alert. Give its file name exactly as listed, or an empty string if none fits."
 )
+SUSPECT_KIND = {
+    "deploy": "a release (a new version was deployed)",
+    "feature_flag": "a feature flag was switched",
+    "config": "a config change",
+}
 
 
 class RunbookPick(BaseModel):
@@ -68,7 +74,11 @@ def run(state: dict) -> dict:
             ),
         ]
     )
-    context = {"incident": incident, "runbooks": [{"file": b["file"], "title": b["title"], "text": b["text"]} for b in books]}
+    context = {
+        "incident": incident,
+        "suspected_change": SUSPECT_KIND.get((suspect or {}).get("type", ""), "nothing stands out"),
+        "runbooks": [{"file": b["file"], "title": b["title"], "text": b["text"]} for b in books],
+    }
     answer, source = brain(state).ask(PROMPT, RunbookPick, context, offline)
     book = next((b for b in books if b["file"] == answer.file), None)
     pace()
