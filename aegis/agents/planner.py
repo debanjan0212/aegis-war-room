@@ -15,8 +15,11 @@ from .base import brain, pace, say
 PROMPT = (
     "You are the planner agent. Using the findings, state the most likely root cause and choose ONE action from "
     "the allowed list. Choose 'escalate' when no allowed action clearly fixes the cause or when you are unsure. "
+    "Only switch off a feature flag that the findings name as the suspect; never a different flag. If the suspect "
+    "is a release or deployment, choose 'escalate': agents are not allowed to roll back. "
     "For set_feature_flag, target is the flag name and value is 'off'. For escalate, leave target and value "
-    "empty. Confidence is a number between 0 and 1."
+    "empty. If defender_feedback is present, your previous plan was blocked for those reasons: do not propose it "
+    "again. Confidence is a number between 0 and 1."
 )
 
 

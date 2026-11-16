@@ -198,6 +198,7 @@ flowchart TD
 
 - **The AI cannot invent an action.** The planner must pick from the actions enabled in [`config/policy.yaml`](config/policy.yaml). Today that is: switch a failure flag off, or hand over to a human.
 - **The defender is rules, not a model.** It checks every plan before you see it, and the executor checks again before acting.
+- **A change must target what the evidence points at.** If a model proposes a plausible fix to something the investigation never named, the defender blocks it. You are never asked to approve a change nobody can connect to the incident.
 - **Nothing runs without a human go**, and the go is tied to a fingerprint of the exact plan. A plan changed after approval is refused.
 - **Logs are treated as hostile.** Lines that read like instructions to an AI are quarantined and shown to you, never to the model.
 - **Everything is recorded** in an audit log where each line is chained to the one before, so edits show up.
@@ -250,7 +251,7 @@ One repository and ten agents today. The long-term goal is nine repositories and
 
 Being straight about the edges:
 
-- **No real model has answered yet.** The laptop model is tested against a stand-in Ollama server, and the Azure and Bedrock clients build and accept the structured answers, but no real model call has been made from this repository. Vertex needs your Google login before it can even be built. Run `aegis models --test` for every model you plan to show.
+- **Only the laptop model has answered for real.** `qwen2.5:7b` on an Apple M4 Pro played all three scenarios. The Azure and Bedrock clients build and accept the structured answers, but no cloud call has been made yet. Vertex needs your Google login before it can even be built. Run `aegis models --test` for every model you plan to show.
 - **Live mode is tested against a stand-in Prometheus and a real flag file, not a running shop.** Watching, metrics, flags, the fix and the re-check work end to end against the stand-in; logs and traces from the live shop are not wired.
 - **Voice cloning is not installed.** The voice menu, the folder layout and the consent check are there. The engine that speaks in a recorded person's voice is the next step.
 - **No login.** It listens on your own machine only. `AEGIS_API_TOKEN` protects the API for scripts; a real login is needed before this goes on a shared network.

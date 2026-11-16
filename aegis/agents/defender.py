@@ -11,15 +11,19 @@ _STEP_UP = {"none": "none", "low": "medium", "medium": "high", "high": "high"}
 
 
 def review(plan: dict, findings: list[dict], quarantined: list[dict]) -> dict:
-    hard = policy.check(plan)
     suspects = {f["suspect"]["target"] for f in findings if f.get("suspect")}
     minimum = policy.load()["limits"]["min_confidence"]
-    soft = [
+    # A change the evidence does not point at is blocked, not just flagged: a model can propose a plausible-sounding
+    # fix to the wrong thing, and the human should never be asked to approve a change nobody can connect to the incident.
+    hard = [
+        *policy.check(plan),
         {
             "check": "The evidence points at the thing being changed",
             "ok": plan["action"] == "escalate" or plan["target"] in suspects,
             "detail": plan["target"] or "(nothing is changed)",
         },
+    ]
+    soft = [
         {"check": "The planner is confident enough", "ok": plan["confidence"] >= minimum, "detail": f"{plan['confidence']:.0%}"},
     ]
     if any(not c["ok"] for c in hard):
