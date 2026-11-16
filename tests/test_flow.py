@@ -133,6 +133,44 @@ def test_the_planner_is_told_plainly_why_its_plan_was_blocked(monkeypatch):
     assert seen[0] is None and seen[1][0].startswith("BLOCKED. Rule broken:") and "You proposed: flagd" in " ".join(seen[1])
 
 
+def test_the_team_hears_only_what_the_record_shows(monkeypatch):
+    """Seen with a real 7B model: the defender blocked the fix, and the scribe told the team it had been applied."""
+    from aegis.agents import scribe
+
+    monkeypatch.setattr(
+        scribe,
+        "offline",
+        lambda context: scribe.Report(
+            postmortem="# Draft\n\n## Summary\nCheckout broke.\n\n## What was done\nWe switched off the checkout flag.\n\n"
+            "## Follow-ups\n- Watch it."
+        ),
+    )
+    monkeypatch.setattr(
+        planner,
+        "offline",
+        lambda context: planner.plan_schema()(
+            root_cause="The checkout release.",
+            action="set_feature_flag",
+            target="cartFailure",
+            value="off",
+            reason="Switching a flag off might help.",
+            undo="Switch it back on.",
+            confidence=0.9,
+        ),
+    )
+    incident = play("bad-deploy")
+    update, postmortem = incident.result["stakeholder_update"], incident.result["postmortem"]
+    assert incident.status == "escalated" and "switched off" not in update and "paged" in update
+    assert "We switched off" not in postmortem and "Aegis changed nothing. The defender blocked the proposed fix" in postmortem
+    assert "## Summary\nCheckout broke." in postmortem and "## Follow-ups" in postmortem  # the model's story is kept
+
+
+def test_what_was_done_is_added_when_the_model_leaves_it_out():
+    from aegis.agents.scribe import pin_what_was_done
+
+    assert pin_what_was_done("## Summary\nx", "Nothing changed.").endswith("## What was done\nNothing changed.\n")
+
+
 def test_the_approved_fingerprint_must_match_the_plan():
     incident = play("payment-failure")
     flow.decide(incident.id, "go", "not-the-real-fingerprint", wait=True)
