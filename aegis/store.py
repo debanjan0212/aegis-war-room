@@ -32,6 +32,7 @@ class Incident:
     events: list = field(default_factory=list)
     gate: dict | None = None  # what the human is being asked to approve
     result: dict = field(default_factory=dict)
+    working: list = field(default_factory=list)  # agents busy right now, so the screen can show who works and who sleeps
 
     def public(self) -> dict:
         return asdict(self)
@@ -41,6 +42,18 @@ INCIDENTS: dict[str, Incident] = {}
 LISTENERS: list = []  # functions called with every new event (the terminal demo prints them)
 _lock = threading.Lock()
 _last_hash: dict[str, str] = {}
+
+
+def start_work(incident_id: str, agent: str) -> None:
+    with _lock:
+        if agent not in INCIDENTS[incident_id].working:
+            INCIDENTS[incident_id].working.append(agent)
+
+
+def end_work(incident_id: str, agent: str) -> None:
+    with _lock:
+        if agent in INCIDENTS[incident_id].working:
+            INCIDENTS[incident_id].working.remove(agent)
 
 
 def create(alert: dict, model: str) -> Incident:

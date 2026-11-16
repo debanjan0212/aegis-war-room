@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import flow, store
+from . import assistant, flow, store
 from .agents import codeguard
 from .brain import default_model, models
 from .connectors import get_connector
@@ -100,6 +100,7 @@ def config() -> dict:
     )
     return {
         "assistant": env("AEGIS_ASSISTANT_NAME", "Aegis"),
+        "operator": env("AEGIS_OPERATOR_NAME"),  # who the assistant greets; the screen asks once if this is empty
         "source": connector.name,
         "models": models(),
         "default_model": default_model(),
@@ -216,14 +217,15 @@ async def stream(incident_id: str, request: Request) -> StreamingResponse:
 
     async def feed():
         nonlocal sent
-        last_status = None
+        last = None
         while True:
             for event in current.events[sent:]:
                 yield f"id: {event['seq']}\nevent: step\ndata: {json.dumps(event, default=str)}\n\n"
                 sent += 1
-            if current.status != last_status:
-                last_status = current.status
-                snapshot = {"status": current.status, "gate": current.gate, "result": current.result}
+            now = (current.status, tuple(current.working))
+            if now != last:
+                last = now
+                snapshot = {"status": current.status, "gate": current.gate, "result": current.result, "working": list(now[1])}
                 yield f"event: status\ndata: {json.dumps(snapshot)}\n\n"
             if current.status not in store.OPEN and sent >= len(current.events):
                 return
@@ -240,6 +242,20 @@ def decision(incident_id: str, body: Decision) -> dict:
     except ValueError as err:
         raise HTTPException(409, str(err)) from err
     return {"ok": True}
+
+
+# --- talking to Aegis ----------------------------------------------------------
+class Ask(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
+    model: str = Field("", max_length=40)
+
+
+@app.post("/api/assistant", dependencies=[Depends(guard)])
+def talk(body: Ask) -> dict:
+    """What you said, in your own words, becomes one command and a reply. It can never approve or reject a fix."""
+    wanted = body.model or default_model()
+    ready = any(m["id"] == wanted and m["ready"] for m in models())
+    return assistant.answer(body.text, wanted if ready else "offline")
 
 
 # --- security ----------------------------------------------------------------

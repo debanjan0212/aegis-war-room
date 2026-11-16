@@ -6,7 +6,7 @@
 **An alert fires → a team of AI agents investigates out loud → a defender checks their fix → you say go or no-go → only then is anything changed.**
 It runs with no cloud and no API key. A model on your own laptop (Ollama), Azure OpenAI, AWS Bedrock and Google Vertex AI are one dropdown away. A voice assistant briefs you and takes "go" and "no-go" by voice.
 
-![The war room at the go / no-go moment](docs/images/war-room.png)
+![The shelter: Aegis in the middle, the crew around it, after a resolved incident](docs/images/war-room.png)
 
 ```text
 $ aegis demo
@@ -61,22 +61,28 @@ make test
 
 No `make` on your machine? Every `make` target is one line in the `Makefile`.
 
-### Step 2: open the war room screen
+### Step 2: open the shelter
 
 ```bash
 cd web && npm ci && cd ..      # once: install the screen's libraries
 make serve                     # builds the screen and starts everything
 ```
 
-Open **http://localhost:8000**. Pick an incident and watch the stations along the top report in one by one. When "You" lights up, it is your call.
+Open **http://localhost:8000** in Chrome and press **Wake Aegis**. The core lights up, the crew comes online one bay at a time, and Aegis greets you by name, out loud. Put `AEGIS_OPERATOR_NAME=YourName` in `.env` so it never has to ask.
 
-### Step 3: turn on the voice
+- **The shelter** is the whole crew around Aegis. Each bay says what that agent is doing right now: asleep, standing by, working, done, blocked, or your call. Tap a bay to hear what that agent does.
+- **Talk to it** in your own words, typed or by the microphone button (or tap the core): "run the payment drill", "who is working?", "scan the code", "attack your defences", "what are you?". The chips under the conversation are shortcuts.
+- **The conversation** on the right holds your messages, Aegis's replies, every agent's report and the go / no-go, in one thread.
 
-On the screen, switch **Speaking** on to hear the briefing, and **Listening** on to answer by voice (the browser asks for the microphone once).
+### Step 3: decide by voice
+
+When a plan is ready, the "You" bay and the core turn amber and Aegis reads the briefing.
 
 - Say **"no-go"** and it stops at once.
 - Say **"go"**, then **"confirm"**, and it proceeds. Acting always takes two steps; stopping takes one.
 - Say **"brief me"** to hear the briefing again.
+
+Go and no-go are matched word for word on the screen. They never go to a model, so no phrasing can approve a fix by accident. **Always listening** in the top bar treats everything the microphone hears as a message; leave it off in a noisy room and use the microphone button instead.
 
 The **Voice** menu lists every folder in [`voices/`](voices/). Two stock voices ship with the repo. To add your own voice, see [`voices/README.md`](voices/README.md).
 
@@ -214,6 +220,7 @@ aegis/                the backend (Python)
   connectors/         how Aegis reads from and acts on the outside world: simulator.py and otel_demo.py
   security/           policy.py (the rules), injection.py (the log filter), drill.py (the attack tests)
   flow.py             the order the agents speak in, and the go / no-go pause
+  assistant.py        Aegis itself: turns what you say into one command, and answers from the record
   brain.py            the model toggle
   store.py            incidents, the live feed and the audit log
   server.py           the web API, and the watcher that looks at a live system by itself

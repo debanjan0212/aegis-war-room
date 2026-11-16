@@ -21,6 +21,8 @@ One process, three layers. Nothing here needs a cloud account to run.
 
 [`aegis/flow.py`](../aegis/flow.py) is a LangGraph graph. Each agent is one step. The steps share one piece of state (the alert, the findings so far, the plan, the decision), so agents "talk" by adding to it, and everything they say out loud also goes to the screen and the audit log.
 
+You talk to Aegis through [`aegis/assistant.py`](../aegis/assistant.py). A model works out which one of a fixed list of commands you meant; everything factual in the reply is built from the record. Go and no-go never pass through it: the screen matches those words exactly.
+
 In live mode an incident can also start by itself: with `AEGIS_WATCH_EVERY` set, `server.py` looks at the live system every few seconds and opens an incident for anything unhealthy that is not already being handled. The screen follows the newest open incident whenever it is not busy with one.
 
 The go / no-go is a real pause, not a flag in a loop. The graph stops at `interrupt()` and its state is saved. Nothing after that point can run until `flow.decide()` resumes it with the human's answer.

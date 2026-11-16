@@ -1,100 +1,220 @@
 @import "tailwindcss";
-@import "@fontsource/atkinson-hyperlegible/400.css";
-@import "@fontsource/atkinson-hyperlegible/700.css";
-@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/oxanium/400.css";
+@import "@fontsource/oxanium/600.css";
+@import "@fontsource/oxanium/700.css";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
 
-/* The look: a dark control-room board with pale paper strips on it, like the
-   flight strips air traffic controllers pass along. Each agent is a station. */
+/* The look: one shelter at night. Aegis is the shield-shaped core in the middle; every agent has a bay around it.
+   Colour always means the same thing: cyan is Aegis and work in progress, amber is you, green is done, red is blocked.
+   Nothing glows unless it is doing something. */
 @theme {
-  --font-sans: "Atkinson Hyperlegible", system-ui, sans-serif;
-  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-display: "Oxanium", "IBM Plex Sans", sans-serif;
 
-  --color-board: #1e2b34;
-  --color-well: #27363f;
-  --color-rule: #3a4b55;
-  --color-chalk: #dce5e9;
-  --color-chalk-dim: #93a4ae;
+  --color-night: #060a12;
+  --color-hull: #0c1422;
+  --color-hull-high: #121d30;
+  --color-glass: #1c2a40;
+  --color-text: #d9e6f5;
+  --color-dim: #7f92ad;
 
-  --color-strip: #eef2f3;
-  --color-strip-dim: #dce3e6;
-  --color-ink: #13202a;
-  --color-ink-soft: #4a5b66;
-
-  --color-go: #18794c;
-  --color-nogo: #b3261e;
-  --color-amber: #f0a91b;
-
-  --color-investigate: #3d7dd8;
-  --color-plan: #7a5ccb;
-  --color-defend: #0e8c8c;
-  --color-act: #1e8e5a;
-  --color-record: #7c8a93;
+  --color-aegis: #62e6f0;
+  --color-ember: #ffb547;
+  --color-calm: #4be3a0;
+  --color-flare: #ff5468;
+  --color-flag: #e9d46a;
 }
 
 html {
-  background: var(--color-board);
-  color: var(--color-chalk);
+  background: var(--color-night);
+  color: var(--color-text);
   font-family: var(--font-sans);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.5;
+}
+body {
+  background:
+    radial-gradient(60rem 40rem at 30% 45%, color-mix(in srgb, var(--color-aegis) 7%, transparent), transparent 70%),
+    var(--color-night);
+  min-height: 100vh;
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-amber);
-  outline-offset: 2px;
-}
-
-/* One strip of paper on the board. The coloured edge says which station it came from. */
-.strip {
-  background: var(--color-strip);
-  color: var(--color-ink);
-  border-left: 8px solid var(--color-record);
-  border-radius: 2px 6px 6px 2px;
-  padding: 0.7rem 1rem 0.8rem;
-}
-.strip[data-kind="warn"],
-.strip[data-kind="ask"] {
-  background: #fbefcf;
-}
-.strip[data-kind="block"],
-.strip[data-kind="error"] {
-  background: #f8dedb;
-}
-
-.field {
-  background: var(--color-well);
-  color: var(--color-chalk);
-  border: 1px solid var(--color-rule);
-  border-radius: 6px;
-  padding: 0.4rem 0.6rem;
-}
-.quiet-button {
-  border: 1px solid var(--color-rule);
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
-  color: var(--color-chalk);
-}
-.quiet-button:hover {
-  background: var(--color-well);
-}
-.quiet-button[aria-pressed="true"] {
-  background: var(--color-chalk);
-  color: var(--color-ink);
-  border-color: var(--color-chalk);
+  outline: 2px solid var(--color-aegis);
+  outline-offset: 3px;
 }
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-/* The only thing on the board that moves by itself: the station whose turn it is. */
-@keyframes station-live {
-  from { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 70%, transparent); }
-  to { box-shadow: 0 0 0 10px transparent; }
+/* Panels are dark glass with a hairline edge. One radius for panels, a smaller one for controls. */
+.glass {
+  background: color-mix(in srgb, var(--color-hull) 88%, transparent);
+  border: 1px solid var(--color-glass);
+  border-radius: 14px;
 }
-.lamp[data-state="live"] {
-  animation: station-live 1.2s ease-out infinite;
+.control {
+  background: var(--color-hull);
+  border: 1px solid var(--color-glass);
+  border-radius: 8px;
+  color: var(--color-text);
+  padding: 0.4rem 0.7rem;
 }
+.control:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-aegis) 45%, var(--color-glass));
+}
+.control[aria-pressed="true"] {
+  border-color: var(--color-aegis);
+  color: var(--color-aegis);
+  box-shadow: 0 0 18px -6px var(--color-aegis);
+}
+.chip {
+  border: 1px solid var(--color-glass);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.875rem;
+  color: var(--color-dim);
+  white-space: nowrap;
+}
+.chip:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: color-mix(in srgb, var(--color-aegis) 50%, var(--color-glass));
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The shelter. States: asleep, standby, working, done, flagged, blocked, yourcall, ready.
+   --------------------------------------------------------------------------------------------- */
+.bay {
+  --tone: var(--color-dim);
+  transition: opacity 400ms ease;
+}
+.bay[data-state="asleep"] { --tone: #3a4a63; }
+.bay[data-state="standby"] { --tone: #5d7290; }
+.bay[data-state="working"],
+.bay[data-state="ready"] { --tone: var(--color-aegis); }
+.bay[data-state="done"] { --tone: var(--color-calm); }
+.bay[data-state="flagged"] { --tone: var(--color-flag); }
+.bay[data-state="blocked"] { --tone: var(--color-flare); }
+.bay[data-state="yourcall"] { --tone: var(--color-ember); }
+.bay[data-you="true"][data-state="ready"],
+.bay[data-you="true"][data-state="done"] { --tone: var(--color-ember); }
+
+.bay-cell {
+  fill: var(--color-hull);
+  stroke: var(--tone);
+  stroke-width: 2;
+}
+.bay[data-state="working"] .bay-cell,
+.bay[data-state="yourcall"] .bay-cell,
+.bay[data-state="blocked"] .bay-cell {
+  fill: color-mix(in srgb, var(--tone) 14%, var(--color-hull));
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--tone) 70%, transparent));
+}
+.bay[data-state="done"] .bay-cell { fill: color-mix(in srgb, var(--tone) 8%, var(--color-hull)); }
+.bay-icon { stroke: var(--tone); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.bay-name { fill: var(--color-text); font-family: var(--font-display); font-weight: 600; font-size: 22px; }
+.bay[data-state="asleep"] .bay-name { fill: #6d7f99; }
+.bay-state { fill: var(--tone); font-size: 16px; }
+
+.beam { stroke: var(--tone); stroke-width: 1.5; opacity: 0.35; }
+.bay[data-state="asleep"] .beam { stroke-dasharray: 2 8; opacity: 0.4; }
+.bay[data-state="standby"] .beam { stroke-dasharray: 2 6; opacity: 0.5; }
+.bay[data-state="working"] .beam,
+.bay[data-state="yourcall"] .beam {
+  stroke-width: 2.5;
+  opacity: 0.9;
+  stroke-dasharray: 10 12;
+  animation: beam-flow 0.9s linear infinite;
+}
+.bay[data-state="done"] .beam { opacity: 0.55; }
+
+/* A spinning arc around whoever is working right now. */
+.bay-orbit { fill: none; stroke: var(--tone); stroke-width: 2.5; stroke-dasharray: 40 400; opacity: 0; }
+.bay[data-state="working"] .bay-orbit { opacity: 1; animation: spin 1.4s linear infinite; transform-box: fill-box; transform-origin: center; }
+.bay[data-state="yourcall"] .bay-cell { animation: breathe 1.6s ease-in-out infinite; }
+.bay[data-state="asleep"] .bay-icon { animation: doze 5s ease-in-out infinite; }
+
+/* The core: Aegis. */
+.core { --tone: var(--color-aegis); }
+.core[data-mood="yourcall"] { --tone: var(--color-ember); }
+.core[data-mood="resolved"] { --tone: var(--color-calm); }
+.core[data-mood="blocked"] { --tone: var(--color-flare); }
+.core[data-mood="asleep"] { --tone: #34445c; }
+.core-shell { fill: var(--color-hull); stroke: var(--tone); stroke-width: 2.5; filter: drop-shadow(0 0 30px color-mix(in srgb, var(--tone) 55%, transparent)); }
+.core-ring { fill: none; stroke: var(--tone); stroke-width: 1.2; opacity: 0.45; }
+.core-heart { fill: url(#heart); }
+.core[data-mood="asleep"] .core-shell { filter: none; }
+.core-name { fill: var(--color-text); font-family: var(--font-display); font-weight: 700; font-size: 46px; letter-spacing: 0.06em; }
+.core-line { fill: var(--tone); font-size: 18px; }
+.core-spin { fill: none; stroke: var(--tone); stroke-width: 3; stroke-dasharray: 120 520; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.core[data-busy="true"] .core-spin { opacity: 0.9; animation: spin 2.4s linear infinite; }
+.core[data-busy="true"] .core-spin.reverse { animation-direction: reverse; animation-duration: 3.6s; }
+.core[data-speaking="true"] .core-heart { animation: speak 0.5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+.core[data-mood="yourcall"] .core-shell { animation: breathe 1.6s ease-in-out infinite; }
+.core-hit { cursor: pointer; }
+
+/* Waking up: the core lights, then the crew comes online one bay at a time. The one big moment on this screen. */
+.waking .core-shell { animation: ignite 900ms ease-out both; }
+.waking .bay { animation: roll-call 500ms ease-out both; animation-delay: calc(700ms + var(--i) * 110ms); }
+
+@keyframes beam-flow { to { stroke-dashoffset: -22; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes breathe { 50% { filter: drop-shadow(0 0 26px var(--tone)); } }
+@keyframes doze { 50% { opacity: 0.45; } }
+@keyframes speak { from { transform: scale(0.94); } to { transform: scale(1.08); } }
+@keyframes ignite {
+  0% { stroke: #34445c; filter: none; }
+  60% { filter: drop-shadow(0 0 60px var(--color-aegis)); }
+}
+@keyframes roll-call {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+.waking .bay { transform-box: fill-box; transform-origin: center; }
+
+/* ---------------------------------------------------------------------------------------------
+   The conversation.
+   --------------------------------------------------------------------------------------------- */
+.say-aegis { border-left: 2px solid var(--color-aegis); padding-left: 0.9rem; }
+.say-you {
+  background: color-mix(in srgb, var(--color-ember) 12%, var(--color-hull));
+  border: 1px solid color-mix(in srgb, var(--color-ember) 35%, transparent);
+  border-radius: 14px 14px 4px 14px;
+  padding: 0.5rem 0.85rem;
+}
+.report {
+  --tone: var(--color-calm);
+  background: var(--color-hull);
+  border: 1px solid var(--color-glass);
+  border-left: 3px solid var(--tone);
+  border-radius: 10px;
+  padding: 0.6rem 0.85rem;
+}
+.report[data-kind="warn"] { --tone: var(--color-flag); }
+.report[data-kind="block"],
+.report[data-kind="error"] { --tone: var(--color-flare); }
+.report[data-kind="open"],
+.report[data-kind="ask"] { --tone: var(--color-aegis); }
+.report[data-kind="decision"] { --tone: var(--color-ember); }
+.decision-card {
+  border: 1px solid var(--color-ember);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-ember) 7%, var(--color-hull));
+  box-shadow: 0 0 40px -18px var(--color-ember);
+}
+.go { background: var(--color-calm); color: #04140d; }
+.nogo { background: var(--color-flare); color: #1a0307; }
+
+/* On a phone the shelter is a third of its drawn size, so its words are drawn bigger. */
+@media (max-width: 640px) {
+  .bay-name { font-size: 36px; }
+  .bay-state { font-size: 28px; }
+  .core-line { font-size: 26px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .lamp[data-state="live"] { animation: none; outline: 2px solid currentColor; outline-offset: 3px; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
