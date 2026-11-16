@@ -11,7 +11,7 @@ web/dist/
 
 # Never commit these: your keys, and the record of what happened on your machine
 .env
-audit.log.jsonl
+audit*.log.jsonl
 
 # Personal voices stay on your machine. Only the stock voices and the template are in Git,
 # so nobody's recorded voice can be pushed by accident.

@@ -115,7 +115,7 @@ def run(state: dict) -> dict:
         "outcome": outcome,
         "postmortem": answer.postmortem,
         "stakeholder_update": answer.stakeholder_update,
-        "closing": CLOSING[outcome].format(service=state["triage"]["service"]),
+        "closing": CLOSING[outcome].format(service=state["triage"]["service"].replace("-", " ")),
     }
     pace()
     say(

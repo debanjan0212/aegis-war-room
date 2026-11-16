@@ -32,7 +32,11 @@ function Start({ config, busy, onStart, onScanLive }: Pick<Props, "config" | "bu
     return (
       <section>
         <h2 className="font-display text-3xl">Watching the live system</h2>
-        <p className="mt-2 text-chalk-dim">Connected to {config.source}. Break something there, wait a minute for the numbers to move, then scan.</p>
+        <p className="mt-2 text-chalk-dim">
+          {config.watch_every
+            ? `Connected to ${config.source}, checking every ${config.watch_every} seconds. Break something there and the room wakes up by itself within a minute or two.`
+            : `Connected to ${config.source}. Break something there, wait a minute for the numbers to move, then scan.`}
+        </p>
         <button className="mt-4 w-full rounded-md bg-chalk px-4 py-3 text-lg font-bold text-ink" disabled={busy} onClick={onScanLive}>
           Scan the live system now
         </button>

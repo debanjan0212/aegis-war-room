@@ -41,8 +41,9 @@ class OtelDemo:
         metrics = {}
         for name, template in self.cfg["queries"].items():
             rows = self._query(Template(template).substitute(service=service))
-            value = float(rows[0]["value"][1]) if rows else 0.0
-            metrics[name] = 0.0 if value != value else round(value, 4)  # NaN (no traffic) reads as 0
+            value = float(rows[0]["value"][1]) if rows else float("nan")
+            if value == value:  # no rows, or NaN (no traffic): leave it out. No data must never read as "healthy"
+                metrics[name] = round(value, 4)
         return {"metrics": metrics, "logs": [], "traces": []}
 
     def _flag_file(self) -> Path:

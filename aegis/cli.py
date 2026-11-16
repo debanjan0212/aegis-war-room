@@ -5,6 +5,9 @@ aegis demo      play one incident in the terminal, no browser needed
 aegis scan      run the Code Guard agent over this repository
 aegis drill     run the security drill
 aegis audit     check that the audit log has not been edited
+aegis models    list the models and what each one is missing; --test asks each ready one a tiny question
+
+Settings in a .env file next to this repository are read first. Anything already set in the terminal wins.
 """
 
 from __future__ import annotations
@@ -12,6 +15,23 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
+
+
+def _load_env() -> None:
+    """Read .env so nobody has to remember `source .env` in every new terminal."""
+    from .settings import ROOT
+
+    path = ROOT / ".env"
+    if not path.is_file():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip().removeprefix("export ").strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, value = line.split("=", 1)
+        value = value.split(" #", 1)[0].strip().strip("'\"")  # drop a comment at the end of the line
+        os.environ.setdefault(name.strip(), value)
 
 
 def _serve(args) -> int:
@@ -67,7 +87,38 @@ def _audit(_args) -> int:
     return 0 if ok else 1
 
 
+def _models(args) -> int:
+    """Which models are set up, and with --test, which ones really answer in the shape the agents need."""
+    from pydantic import BaseModel, Field
+
+    from .brain import Brain, models
+
+    class Ping(BaseModel):
+        ready: bool = Field(description="true")
+        word: str = Field(description="the word aegis")
+
+    failed = 0
+    for entry in models():
+        if not entry["ready"]:
+            print(f"  NOT SET UP  {entry['label']}\n              needs: {'; '.join(entry['missing'])}")
+        elif not args.test or entry["id"] == "offline":
+            print(f"  READY       {entry['label']}")
+        else:
+            brain, started = Brain(entry["id"]), time.monotonic()
+            _, who = brain.ask("Answer with ready set to true and word set to 'aegis'.", Ping, {"check": "ping"}, lambda _: None)
+            took = time.monotonic() - started
+            if who == entry["id"]:
+                print(f"  ANSWERED    {entry['label']}  ({took:.1f} s)")
+            else:
+                failed += 1
+                print(f"  FAILED      {entry['label']}  ({took:.1f} s)\n              {brain.last_error or brain.problem}")
+    if not args.test:
+        print("\nAdd --test to ask each ready model one tiny question.")
+    return 1 if failed else 0
+
+
 def main() -> None:
+    _load_env()
     parser = argparse.ArgumentParser(prog="aegis", description="Aegis War Room")
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -91,6 +142,10 @@ def main() -> None:
 
     commands.add_parser("drill", help="run the security drill").set_defaults(run=_drill)
     commands.add_parser("audit", help="verify the audit log").set_defaults(run=_audit)
+
+    check = commands.add_parser("models", help="list the models; --test asks each ready one a tiny question")
+    check.add_argument("--test", action="store_true")
+    check.set_defaults(run=_models)
 
     args = parser.parse_args()
     sys.exit(args.run(args))

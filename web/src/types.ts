@@ -25,7 +25,16 @@ export type Voice = {
   pitch?: number;
 };
 export type Scenario = { id: string; title: string; story: string };
-export type Config = { assistant: string; source: string; models: Model[]; default_model: string; scenarios: Scenario[]; voices: Voice[] };
+export type Config = {
+  assistant: string;
+  source: string;
+  models: Model[];
+  default_model: string;
+  scenarios: Scenario[];
+  voices: Voice[];
+  watch_every: number; // seconds between automatic looks at the live system; 0 = off
+};
+export type IncidentRow = { id: string; title: string; status: string; created: number; service: string };
 
 export type ScanReport = {
   summary: string;

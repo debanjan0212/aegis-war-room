@@ -148,3 +148,65 @@ def test_live_connector_reads_metrics_flags_and_switches_a_flag_off(tmp_path, mo
             raise AssertionError("should have refused")
         except RuntimeError:
             pass
+
+
+def test_no_data_from_the_live_system_never_reads_as_healthy(monkeypatch, tmp_path):
+    from aegis.agents.verifier import healthy
+
+    empty = httpx.MockTransport(lambda _r: httpx.Response(200, json={"status": "success", "data": {"result": []}}))
+    metrics = OtelDemo(httpx.Client(transport=empty)).signals("payment")["metrics"]
+    assert metrics == {}
+    assert not healthy(metrics)
+
+
+def test_the_watcher_opens_an_incident_by_itself_and_does_not_repeat_it(monkeypatch, tmp_path):
+    from aegis import server
+
+    flags = tmp_path / "demo.flagd.json"
+    flags.write_text(json.dumps({"flags": {"paymentFailure": {"defaultVariant": "50%", "variants": {"50%": 0.5, "off": 0}}}}))
+    monkeypatch.setenv("OTEL_DEMO_FLAG_FILE", str(flags))
+    monkeypatch.setenv("AEGIS_SOURCE", "otel-demo")
+    demo = OtelDemo(httpx.Client(transport=httpx.MockTransport(prometheus)))
+    monkeypatch.setattr(server, "get_connector", lambda: demo)
+    monkeypatch.setattr("aegis.connectors.get_connector", lambda: demo)
+
+    first = server.watch_once(quiet=180)
+    assert len(first) == 1
+    wait_for(first[0], "awaiting_decision")
+    assert server.watch_once(quiet=180) == []  # still open: the same alert does not open a second room
+
+    store.INCIDENTS[first[0]].status = "rejected"  # a human said no-go
+    assert server.watch_once(quiet=180) == []  # ...so it stays quiet for a while
+    again = server.watch_once(quiet=0)
+    assert len(again) == 1 and again != first  # and speaks up again once the quiet time is over
+    wait_for(again[0], "awaiting_decision")
+
+
+def test_watching_is_off_in_the_simulator_and_on_when_asked_in_live_mode(monkeypatch):
+    from aegis import server
+
+    monkeypatch.setenv("AEGIS_WATCH_EVERY", "20")
+    assert server.watch_every() == 0  # the simulator has nothing to watch
+    monkeypatch.setenv("AEGIS_SOURCE", "otel-demo")
+    get_connector_cache_clear()
+    assert server.watch_every() == 20
+
+
+def get_connector_cache_clear():
+    from aegis.connectors import get_connector
+
+    get_connector.cache_clear()
+
+
+def test_scanning_a_live_system_that_is_down_explains_itself(monkeypatch):
+    from aegis import server
+
+    class Down:
+        name = "otel-demo"
+
+        def detect(self):
+            raise httpx.ConnectError("connection refused")
+
+    monkeypatch.setattr(server, "get_connector", lambda: Down())
+    reply = client.post("/api/incidents/scan-live", json={})
+    assert reply.status_code == 502 and "demo shop running" in reply.json()["detail"]

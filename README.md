@@ -4,7 +4,7 @@
 ![security](https://github.com/debanjan0212/aegis-war-room/actions/workflows/security.yml/badge.svg)
 
 **An alert fires → a team of AI agents investigates out loud → a defender checks their fix → you say go or no-go → only then is anything changed.**
-It runs with no cloud and no API key. Azure OpenAI, AWS Bedrock and Google Vertex AI are one dropdown away. A voice assistant briefs you and takes "go" and "no-go" by voice.
+It runs with no cloud and no API key. A model on your own laptop (Ollama), Azure OpenAI, AWS Bedrock and Google Vertex AI are one dropdown away. A voice assistant briefs you and takes "go" and "no-go" by voice.
 
 ![The war room at the go / no-go moment](docs/images/war-room.png)
 
@@ -37,8 +37,8 @@ This section is written for anyone. Go step by step and stop at the step you nee
 | **Try it** in the terminal | Python 3.11 or newer, Git |
 | **Open the war room screen** | the above, plus Node.js 22 or newer |
 | **Use the voice** | Chrome or Edge. Speaking works in most browsers; listening needs Chrome or Edge |
-| **Use a real AI model** | an Azure OpenAI deployment, or AWS Bedrock access, or a Google Cloud project with Vertex AI |
-| **Run against a real system** | Docker with about 8 GB of memory, for the [OpenTelemetry Demo](https://opentelemetry.io/docs/demo/) shop |
+| **Use a real AI model** | [Ollama](https://ollama.com) on your laptop (free, no account), or an Azure OpenAI deployment, AWS Bedrock access, or a Google Cloud project with Vertex AI |
+| **Run against a real system** | Docker with 8 GB of memory, for the [OpenTelemetry Demo](https://opentelemetry.io/docs/demo/) shop |
 
 On Windows, use WSL2.
 
@@ -55,6 +55,7 @@ aegis demo --scenario recommendation-slow    # a different service and a differe
 aegis demo --scenario bad-deploy             # the fix is a rollback, which agents may not do, so Aegis hands over
 aegis drill                                  # eight attacks on the defences. All eight must say HELD
 aegis scan                                   # the Code Guard agent scans this repository
+aegis models                                 # which models are set up, and what each one still needs
 make test
 ```
 
@@ -79,34 +80,88 @@ On the screen, switch **Speaking** on to hear the briefing, and **Listening** on
 
 The **Voice** menu lists every folder in [`voices/`](voices/). Two stock voices ship with the repo. To add your own voice, see [`voices/README.md`](voices/README.md).
 
-### Step 4: switch the model
+### You do not need an AI model
 
-The **Model** menu is the toggle. Each entry is a few lines in [`config/models.yaml`](config/models.yaml), so moving between clouds is a setting, not a code change.
+The **Model** menu starts on **Offline rules**, and everything in steps 1 to 3 already ran that way. In this mode each agent uses built-in rules instead of an AI model, and the whole loop works: investigate, plan, defender check, go / no-go, fix, verify, write-up. The tests and CI run like this too.
+
+What you give up without a model: the rules understand the kinds of incident in [`scenarios/`](scenarios/) (a flag switched on by mistake, a bad release). Faced with anything else they hand over to a human instead of guessing. A model adds judgement on incidents the rules have not seen, and better-written summaries. The defender, the go / no-go and the audit log are the same either way.
+
+### Step 4: switch the model (optional)
+
+The **Model** menu is the toggle. Each entry is a few lines in [`config/models.yaml`](config/models.yaml), so moving between a laptop model and the clouds is a setting, not a code change. Settings go in a `.env` file, which `aegis` reads by itself:
 
 ```bash
-pip install -e ".[cloud]"       # once: the Azure, AWS and Google libraries
-cp .env.example .env            # fill in the block for the cloud you use
-set -a; source .env; set +a
-make serve
+cp .env.example .env            # once. Then fill in only the blocks you use
 ```
 
-A model shows as "(not set up)" until its settings are present. If a cloud model fails in the middle of an incident, the agent says so on its strip and carries on with the offline rules. An incident never stops because a model did.
+**A model on your laptop (Mac, Linux or Windows).** Nothing leaves the machine and there is no key.
+
+1. Install [Ollama](https://ollama.com) (on a Mac: download the app, or `brew install ollama`) and open it once.
+2. Pull a model that fits your memory:
+
+   | Your laptop's memory | With the demo shop running (step 5) | Without the shop |
+   |---|---|---|
+   | 8 GB | use a cloud model instead | `qwen2.5:3b` |
+   | 16 GB | `qwen2.5:3b` | `qwen2.5:7b` |
+   | 32 GB or more | `qwen2.5:7b` | `qwen2.5:14b` |
+
+   ```bash
+   ollama pull qwen2.5:7b
+   ```
+3. Tell Aegis which one, and check it answers:
+
+   ```bash
+   pip install -e ".[local]"      # once: the Ollama library
+   # in .env:  OLLAMA_MODEL=qwen2.5:7b   and, to use it by default,  AEGIS_MODEL=local
+   aegis models --test            # "ANSWERED" means the agents can use it
+   ```
+
+Other models work too if they can answer in a fixed JSON shape: change `OLLAMA_MODEL`, pull it, and run `aegis models --test`.
+
+**A cloud model.**
+
+```bash
+pip install -e ".[cloud]"       # once: the Azure, AWS, Google and Ollama libraries
+# fill in the block for your cloud in .env
+aegis models --test
+```
+
+Then `make serve` and pick the model in the menu. A model shows as "(not set up)" until its settings are present; `aegis models` says exactly what is missing. If a model fails in the middle of an incident, the agent says so on its strip and carries on with the offline rules. An incident never stops because a model did.
 
 ### Step 5: run it against a real system
 
-```bash
-# Terminal 1: the demo shop with Prometheus and Grafana
-git clone https://github.com/open-telemetry/opentelemetry-demo.git
-cd opentelemetry-demo && make start
+The [OpenTelemetry Demo](https://opentelemetry.io/docs/demo/) is a real online shop made of many small services, with Prometheus and Grafana. Start Docker (on a Mac, Docker Desktop with 8 GB of memory in Settings, Resources), then:
 
-# Terminal 2: Aegis, pointed at it
-export AEGIS_SOURCE=otel-demo
-export OTEL_DEMO_FLAG_FILE=/full/path/to/opentelemetry-demo/src/flagd/demo.flagd.json
-export AEGIS_VERIFY_TRIES=8 AEGIS_VERIFY_WAIT=15     # real numbers take a minute or two to settle
-make serve
+```bash
+make shop        # first time: downloads the shop next to this folder and its images (several GB, do it on good Wi-Fi)
+make live        # the war room, pointed at the shop and watching it by itself
 ```
 
-Break something: open the shop's flag page at http://localhost:8080/feature and set `paymentFailure` to 50%. Wait about two minutes, then press **Scan the live system now** on the Aegis screen. Aegis also accepts alerts as a webhook at `POST /api/alerts` in the Alertmanager and Grafana format.
+Open http://localhost:8000. Now break something: open the shop's flag page at http://localhost:8080/feature and set `paymentFailure` to 50%. Within a minute or two the room wakes up by itself and asks you for go or no-go. Say go, and watch the verifier see the shop recover.
+
+- The watcher uses the default model (`AEGIS_MODEL` in `.env`), not the menu. Set `AEGIS_MODEL=local` to have the laptop model answer.
+- After an incident, the watcher waits three minutes before it opens another one for the same service (`AEGIS_WATCH_QUIET`), so a no-go is not asked again and again.
+- `make shop` sets the shop to update its numbers every 15 seconds instead of every minute, so failure and recovery show up quickly. It only does this if you have not changed that file yourself.
+- `make shop-stop` stops the shop and gives the memory back.
+- If you would rather press a button than watch: `make serve` with `AEGIS_SOURCE=otel-demo` in `.env`, then **Scan the live system now**. Aegis also accepts alerts as a webhook at `POST /api/alerts` in the Alertmanager and Grafana format.
+
+### Step 6: show it to other people
+
+| Where they are | What to do |
+|---|---|
+| In the room, or on a call | `make serve`, open http://localhost:8000 and share your screen. Switch **Speaking** on so they hear the briefing |
+| On the same Wi-Fi, on their own devices | Start it with a token (below) and give them the link |
+| On a machine with Docker | `docker build -t aegis-war-room .` then `docker run --rm -p 127.0.0.1:8000:8000 aegis-war-room`, and open http://localhost:8000 |
+
+To let others on your network open it:
+
+```bash
+export AEGIS_API_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(24))")
+aegis serve --host 0.0.0.0
+echo "http://<your computer's IP address>:8000/?token=$AEGIS_API_TOKEN"
+```
+
+Anyone who opens that link can start a drill and press go, so share it only with the people in the room. There is no login yet. Do not put this on the public internet.
 
 ## How an incident flows
 
@@ -160,7 +215,7 @@ aegis/                the backend (Python)
   flow.py             the order the agents speak in, and the go / no-go pause
   brain.py            the model toggle
   store.py            incidents, the live feed and the audit log
-  server.py           the web API
+  server.py           the web API, and the watcher that looks at a live system by itself
   voices.py           the voice toggle
   cli.py              the `aegis` command
 config/               settings you can change without touching code
@@ -195,8 +250,8 @@ One repository and ten agents today. The long-term goal is nine repositories and
 
 Being straight about the edges:
 
-- **Cloud models are wired but not proven.** The Azure and Bedrock clients build and accept the structured answers; no real model call has been made from this repository yet. Vertex needs your Google login before it can even be built. Test each cloud you plan to show.
-- **Live mode is tested against recorded answers, not a running shop.** Metrics, flags, the fix and the re-check are implemented; logs and traces from the live shop are not.
+- **No real model has answered yet.** The laptop model is tested against a stand-in Ollama server, and the Azure and Bedrock clients build and accept the structured answers, but no real model call has been made from this repository. Vertex needs your Google login before it can even be built. Run `aegis models --test` for every model you plan to show.
+- **Live mode is tested against a stand-in Prometheus and a real flag file, not a running shop.** Watching, metrics, flags, the fix and the re-check work end to end against the stand-in; logs and traces from the live shop are not wired.
 - **Voice cloning is not installed.** The voice menu, the folder layout and the consent check are there. The engine that speaks in a recorded person's voice is the next step.
 - **No login.** It listens on your own machine only. `AEGIS_API_TOKEN` protects the API for scripts; a real login is needed before this goes on a shared network.
 - **Incidents live in memory.** Restarting the server forgets open incidents. The audit log on disk survives.

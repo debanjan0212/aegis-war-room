@@ -10,6 +10,7 @@ interrupt() and only continues when a decision arrives through decide().
 from __future__ import annotations
 
 import operator
+import re
 import threading
 from typing import Annotated, TypedDict
 
@@ -39,23 +40,45 @@ class State(TypedDict, total=False):
     report: dict
 
 
+CHANGE_WORDS = {"feature_flag": "feature flag", "deploy": "release", "config": "config change"}
+SEVERITY_WORDS = {"critical": "Critical", "high": "High-severity", "medium": "Medium-severity", "low": "Low-severity"}
+
+
+def _say(name: str) -> str:
+    """paymentFailure -> payment failure, product-catalog -> product catalog: how a voice should read a name."""
+    return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name).replace("-", " ").replace("_", " ").lower()
+
+
+def spoken_briefing(state: State) -> str:
+    """The go / no-go briefing, written for the ear: short sentences, whole numbers, names as words."""
+    plan, check = state["plan"], state["defender"]
+    metrics = next((f["metrics"] for f in state["findings"] if f.get("metrics")), {})
+    suspect = next((f["suspect"] for f in state["findings"] if f.get("suspect")), None)
+    healthy = policy.load()["recovery"]
+    severity = SEVERITY_WORDS.get(state["triage"]["severity"], "An")
+    lines = [f"{severity} incident on the {_say(state['triage']['service'])} service."]
+    if metrics.get("error_rate", 0) >= healthy["error_rate_below"]:
+        lines.append(f"The error rate is {metrics['error_rate']:.0%}.")
+    if metrics.get("p95_ms", 0) >= healthy["p95_ms_below"]:
+        lines.append(f"The slowest requests take {metrics['p95_ms'] / 1000:.1f} seconds.")
+    if suspect:
+        kind = CHANGE_WORDS.get(suspect["type"], "change")
+        when = f"{suspect['minutes_before_alert']} minutes before the alert"
+        lines.append(f"A {kind}, {_say(suspect['target'])}, changed {when}.")
+    same_flag = suspect and plan["action"] == "set_feature_flag" and plan["target"] == suspect["target"]
+    lines.append("I recommend we switch it off." if same_flag else f"I recommend we {_say(policy.describe(plan))}.")
+    verdict = "passed" if check["verdict"] == "pass" else "allows it with caution"
+    lines.append(f"The defender check {verdict}, risk {check['risk']}.")
+    if check["quarantined"]:
+        lines.append("One log line tried to give me instructions. I quarantined it.")
+    return " ".join([*lines, "Go, or no-go?"])
+
+
 def brief(state: State) -> dict:
     """Prepare what the human sees and hears at the go / no-go moment."""
     plan, check = state["plan"], state["defender"]
-    headlines = " ".join(f["headline"] for f in state["findings"] if f["agent"] in ("signals", "changes"))
-    spoken = (
-        f"{state['triage']['severity'].capitalize()} incident on the {state['triage']['service']} service. {headlines} "
-        f"I recommend we {policy.describe(plan)}. The defender check came back {check['verdict']}, risk {check['risk']}. "
-        + ("One log line tried to give me instructions. I quarantined it. " if check["quarantined"] else "")
-        + "Go, or no-go?"
-    )
-    gate = {
-        "plan": plan,
-        "plan_text": policy.describe(plan),
-        "plan_hash": check["plan_hash"],
-        "defender": check,
-        "briefing": spoken,
-    }
+    gate = {"plan": plan, "plan_text": policy.describe(plan), "plan_hash": check["plan_hash"], "defender": check}
+    gate["briefing"] = spoken_briefing(state)
     store.ask(state["incident_id"], gate, f"Waiting for a human: go or no-go on the plan to {policy.describe(plan)}?")
     return {"gate": gate}
 

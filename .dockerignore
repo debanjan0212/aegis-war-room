@@ -4,6 +4,6 @@
 web/dist
 **/__pycache__
 .env
-audit.log.jsonl
+audit*.log.jsonl
 tests
 docs

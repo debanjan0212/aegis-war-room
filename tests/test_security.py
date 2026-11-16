@@ -115,11 +115,12 @@ def test_a_failing_model_falls_back_to_offline_rules():
 
 
 def test_cloud_models_are_listed_and_not_ready_without_settings(monkeypatch):
-    for name in ("AZURE_OPENAI_ENDPOINT", "BEDROCK_MODEL_ID", "VERTEX_MODEL"):
+    for name in ("AZURE_OPENAI_ENDPOINT", "BEDROCK_MODEL_ID", "VERTEX_MODEL", "OLLAMA_MODEL"):
         monkeypatch.delenv(name, raising=False)
     by_id = {m["id"]: m for m in models()}
-    assert by_id["offline"]["ready"] and set(by_id) == {"offline", "azure", "bedrock", "vertex"}
+    assert by_id["offline"]["ready"] and set(by_id) == {"offline", "local", "azure", "bedrock", "vertex"}
     assert not by_id["azure"]["ready"] and "AZURE_OPENAI_ENDPOINT" in by_id["azure"]["missing"]
+    assert not by_id["local"]["ready"] and "OLLAMA_MODEL" in by_id["local"]["missing"]
 
 
 def test_voices_come_from_the_folder_and_clones_need_consent(tmp_path, monkeypatch):
