@@ -87,6 +87,28 @@ def test_a_blocked_plan_gets_one_retry_then_escalates_and_nothing_runs(monkeypat
     assert get_connector().fixed == set() and incident.gate is None
 
 
+def test_a_plausible_fix_to_the_wrong_thing_is_blocked_not_put_to_the_human(monkeypatch):
+    """Seen with a real 7B model: a bad release, and the planner proposes switching off an unrelated flag."""
+
+    def wrong_flag(context):
+        return planner.plan_schema()(
+            root_cause="The release probably broke checkout.",
+            action="set_feature_flag",
+            target="cartFailure",
+            value="off",
+            reason="Switching a flag off might help.",
+            undo="Switch it back on.",
+            confidence=0.9,
+        )
+
+    monkeypatch.setattr(planner, "offline", wrong_flag)
+    incident = play("bad-deploy")
+    assert incident.status == "escalated" and incident.gate is None  # the human is never asked to approve it
+    blocks = [e for e in incident.events if e["agent"] == "defender" and e["kind"] == "block"]
+    assert len(blocks) == 2 and "evidence points at the thing being changed" in blocks[0]["text"]
+    assert get_connector().fixed == set()
+
+
 def test_the_approved_fingerprint_must_match_the_plan():
     incident = play("payment-failure")
     flow.decide(incident.id, "go", "not-the-real-fingerprint", wait=True)

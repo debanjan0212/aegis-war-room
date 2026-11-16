@@ -10,6 +10,7 @@ Every release, newest first. Versions follow semantic versioning.
 - **`make shop`, `make live`, `make drills`:** start the OpenTelemetry Demo shop (numbers every 15 seconds instead of every minute), run the war room against it, and run the simulated incidents next to it on port 8001 with their own audit log.
 - **`.env` is read by itself.** No more `source .env` in every new terminal.
 - **Fixes:** no data from the live system no longer reads as "healthy" to the verifier; "Scan the live system" says the shop is not reachable instead of a bare error; model settings keep their numbers and true / false as they are.
+- **The defender blocks a change the evidence does not point at.** It was only a caution before, so a human was asked to approve it. The offline rules never proposed one, but a real 7B model did: for a bad release it proposed switching off an unrelated flag. The planner's prompt also now says to escalate releases and not to repeat a blocked plan.
 - **Docs:** a plan for a solo hackathon day with a "before the day" list, and a demo script that works with the live shop and the simulated incidents side by side.
 
 ## 0.1.0 (16 November 2026)

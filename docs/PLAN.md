@@ -11,7 +11,7 @@ Where the project stands, what to do on hackathon day, and how it grows into som
 | Code Guard agent | Working | Run on this repository: Bandit, pip-audit, npm audit, secrets, pin check all clean |
 | War room screen | Working | Driven through a full incident in Chrome, desktop and phone size |
 | Voice | Partly tested | The briefing is written for the ear and tested. 18 spoken phrases map to the right command. Not yet tried with a real microphone and speaker. Listening uses the browser's speech service, which needs internet |
-| Model toggle | Wired | A laptop model through Ollama, plus Azure, Bedrock and Vertex. The laptop model plays a whole incident against a stand-in Ollama server; Azure and Bedrock clients build. No real model has answered yet. `aegis models --test` checks each one in seconds |
+| Model toggle | Laptop model working; clouds wired | `qwen2.5:7b` through Ollama on an M4 Pro: answers in about 1.4 seconds and played all three scenarios. It once proposed switching off an unrelated flag for a bad release; the defender now blocks that. Azure and Bedrock clients build; no cloud call made yet. `aegis models --test` checks each one in seconds |
 | Live mode (OpenTelemetry Demo) | Wired | `make shop` and `make live`. Watches by itself and opens incidents. Played end to end, in Chrome, against a stand-in Prometheus and a real flag file: broke the flag, the room woke up, go, flag off, recovered. Not yet run against the live shop |
 | Container image | Working | CI builds it, starts it and plays an incident inside it up to the go / no-go |
 | Voice cloning | Not started | Folder layout, menu and consent check are in place |
