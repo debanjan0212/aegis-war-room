@@ -8,6 +8,12 @@ from aegis import brain, cli
 def test_a_local_model_says_exactly_what_is_missing(monkeypatch):
     monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:7b")
 
+    monkeypatch.setattr(brain.importlib.util, "find_spec", lambda _name: None)  # library not installed
+    local = next(m for m in brain.models() if m["id"] == "local")
+    assert local["missing"] == ['the model libraries (pip install -e ".[local]")']
+
+    monkeypatch.setattr(brain.importlib.util, "find_spec", lambda _name: object())  # library installed
+
     def not_running(*_a, **_k):
         raise httpx.ConnectError("refused")
 
