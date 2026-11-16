@@ -109,6 +109,30 @@ def test_a_plausible_fix_to_the_wrong_thing_is_blocked_not_put_to_the_human(monk
     assert get_connector().fixed == set()
 
 
+def test_a_flag_plan_needs_a_suspected_flag_not_a_release_with_the_same_name():
+    """Seen with a real 7B model: the release of 'checkout' was the suspect, and it proposed a flag called 'checkout'."""
+    from aegis.agents import defender
+
+    plan = {"action": "set_feature_flag", "target": "cartFailure", "value": "off", "confidence": 0.9}
+    release = [{"suspect": {"type": "deploy", "target": "cartFailure"}}]
+    flag = [{"suspect": {"type": "feature_flag", "target": "cartFailure"}}]
+    assert defender.review(plan, release, [])["verdict"] == "block"
+    assert defender.review(plan, flag, [])["verdict"] == "pass"
+
+
+def test_the_planner_is_told_plainly_why_its_plan_was_blocked(monkeypatch):
+    seen = []
+    real = planner.offline
+
+    def stubborn(context):
+        seen.append(context.get("defender_feedback"))
+        return real({**context, "defender_feedback": None}).model_copy(update={"target": "flagd"})
+
+    monkeypatch.setattr(planner, "offline", stubborn)
+    play("payment-failure")
+    assert seen[0] is None and seen[1][0].startswith("BLOCKED. Rule broken:") and "You proposed: flagd" in " ".join(seen[1])
+
+
 def test_the_approved_fingerprint_must_match_the_plan():
     incident = play("payment-failure")
     flow.decide(incident.id, "go", "not-the-real-fingerprint", wait=True)

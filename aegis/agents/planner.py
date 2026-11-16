@@ -18,8 +18,9 @@ PROMPT = (
     "Only switch off a feature flag that the findings name as the suspect; never a different flag. If the suspect "
     "is a release or deployment, choose 'escalate': agents are not allowed to roll back. "
     "For set_feature_flag, target is the flag name and value is 'off'. For escalate, leave target and value "
-    "empty. If defender_feedback is present, your previous plan was blocked for those reasons: do not propose it "
-    "again. Confidence is a number between 0 and 1."
+    "empty. If defender_feedback is present, your previous plan broke those rules and was blocked: choose 'escalate' "
+    "unless a different allowed action clearly fixes the cause. Keep every text field to one or two short sentences. "
+    "Confidence is a number between 0 and 1."
 )
 
 
@@ -28,12 +29,12 @@ def plan_schema() -> type[BaseModel]:
 
     class Plan(BaseModel):
         model_config = ConfigDict(use_enum_values=True)
-        root_cause: str = Field(description="one or two plain sentences")
+        root_cause: str = Field(description="one or two short plain sentences")
         action: Action  # type: ignore[valid-type]
         target: str
         value: str
-        reason: str = Field(description="why this action fixes the root cause")
-        undo: str = Field(description="how to undo the action if it makes things worse")
+        reason: str = Field(description="one short sentence: why this action fixes the root cause")
+        undo: str = Field(description="one short sentence: how to undo the action if it makes things worse")
         confidence: float
 
     return Plan
@@ -92,7 +93,10 @@ def run(state: dict) -> dict:
         },
     }
     if blocked:
-        context["defender_feedback"] = [c for c in state["defender"]["checks"] if not c["ok"]]
+        # Written as plain failures: a small model read the bare rule names ("The target is one this action may touch")
+        # as permission and proposed the same plan again.
+        failed = [c for c in state["defender"]["checks"] if not c["ok"]]
+        context["defender_feedback"] = [f"BLOCKED. Rule broken: {c['check']}. You proposed: {c['detail']}." for c in failed]
         context["previous_root_cause"] = state["plan"]["root_cause"]
 
     answer, source = brain(state).ask(PROMPT, plan_schema(), context, offline)
