@@ -93,6 +93,22 @@ def after_defender(state: State) -> str:
     return "close" if state["plan"]["action"] == "escalate" else "ask"
 
 
+def _tracked(name: str, step):
+    """Mark an agent as working while its step runs, for the screen's "who is working, who is asleep"."""
+
+    def run(state: State) -> dict:
+        store.start_work(state["incident_id"], name)
+        try:
+            return step(state)
+        finally:
+            store.end_work(state["incident_id"], name)
+
+    return run
+
+
+AGENTS = {"triage", "signals", "changes", "runbook", "planner", "defender", "executor", "verifier", "scribe"}
+
+
 def build() -> StateGraph:
     graph = StateGraph(State)
     for name, step in [
@@ -108,7 +124,7 @@ def build() -> StateGraph:
         ("verifier", verifier.run),
         ("scribe", scribe.run),
     ]:
-        graph.add_node(name, step)
+        graph.add_node(name, _tracked(name, step) if name in AGENTS else step)
     graph.add_edge(START, "triage")
     graph.add_edge("triage", "signals")
     graph.add_edge("triage", "changes")

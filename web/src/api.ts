@@ -1,5 +1,5 @@
 // Every call the screen makes to the backend, in one place.
-import type { Config, Drill, IncidentRow, ScanReport } from "./types";
+import type { Config, Drill, IncidentRow, ScanReport, Talk } from "./types";
 
 // If the backend is protected (AEGIS_API_TOKEN), open the screen once with ?token=... and it is kept for this tab only.
 const fromUrl = new URLSearchParams(location.search).get("token");
@@ -25,6 +25,7 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 export const api = {
   config: () => call<Config>("/api/config"),
   incidents: () => call<IncidentRow[]>("/api/incidents"),
+  talk: (text: string, model: string) => call<Talk>("/api/assistant", { text, model }),
   trigger: (scenario: string, model: string) => call<{ id: string }>("/api/incidents/trigger", { scenario, model }),
   scanLive: (model: string) => call<{ ids: string[] }>("/api/incidents/scan-live", { model }),
   decide: (id: string, decision: "go" | "no-go", plan_hash: string, by: string, note: string) =>

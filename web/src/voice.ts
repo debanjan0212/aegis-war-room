@@ -1,20 +1,31 @@
-// Voice in and voice out, using what the browser already has. No audio leaves the machine through this file.
+// Voice in and voice out, using what the browser already has.
 import type { Voice } from "./types";
 
 export type Intent = "go" | "no-go" | "confirm" | "brief";
 
-/** Turn what was heard into one of four commands, or nothing. "No-go" is checked first so it always wins. */
+/** The decision words, matched word for word and never by a model. "No-go" is checked first so it always wins. */
 export function intentOf(heard: string): Intent | null {
   const text = heard.toLowerCase();
   if (/\bno[\s-]?go\b|\b(don'?t|do not|not)\s+go\b|\breject\b|\babort\b|\bcancel\b|\bstop\b/.test(text)) return "no-go";
   if (/\bconfirm(ed)?\b/.test(text)) return "confirm";
-  if (/\bbrief\b|\bstatus\b|\brepeat\b|\bagain\b/.test(text)) return "brief";
-  if (/\bgo\b|\bapproved?\b|\bproceed\b/.test(text)) return "go";
+  if (/\bbrief\b|\brepeat\b|\bagain\b/.test(text)) return "brief";
+  if (/^\s*(go|go ahead|approved?|proceed)\W*$/.test(text)) return "go";
   return null;
 }
 
 let speaking = false;
-let quietUntil = 0; // ignore the microphone until this time, so the assistant never hears itself say "go"
+let quietUntil = 0; // ignore the microphone until this time, so the assistant never hears itself
+const watchers = new Set<(on: boolean) => void>();
+
+/** Be told when the assistant starts and stops speaking: the core pulses while it talks. */
+export function onSpeaking(watch: (on: boolean) => void): () => void {
+  watchers.add(watch);
+  return () => watchers.delete(watch);
+}
+const setSpeaking = (on: boolean) => {
+  speaking = on;
+  watchers.forEach((watch) => watch(on));
+};
 
 if ("speechSynthesis" in window) speechSynthesis.getVoices(); // browsers load their voice list lazily; ask early
 
@@ -29,9 +40,9 @@ export function speak(text: string, voice?: Voice): void {
   line.lang = chosen?.lang ?? voice?.lang ?? "en-GB";
   line.rate = voice?.rate ?? 1;
   line.pitch = voice?.pitch ?? 1;
-  speaking = true;
+  line.onstart = () => setSpeaking(true);
   line.onend = line.onerror = () => {
-    speaking = false;
+    setSpeaking(false);
     quietUntil = Date.now() + 600;
   };
   speechSynthesis.speak(line);
@@ -39,22 +50,24 @@ export function speak(text: string, voice?: Voice): void {
 
 export function stopSpeaking(): void {
   if ("speechSynthesis" in window) speechSynthesis.cancel();
+  setSpeaking(false);
 }
 
-export const canListen = () => "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
+const Recognition = () => (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+export const canListen = () => Boolean(Recognition());
 
-/** Start listening. Returns a function that stops it, or null when this browser cannot listen (use Chrome or Edge). */
-export function startListening(onHeard: (text: string, intent: Intent | null) => void): (() => void) | null {
-  const Recognition = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
-  if (!Recognition) return null;
-  const ear = new Recognition();
+/** Keep listening until stopped. Everything heard goes to onHeard, except while the assistant itself is talking. */
+export function startListening(onHeard: (text: string) => void): (() => void) | null {
+  const Ear = Recognition();
+  if (!Ear) return null;
+  const ear = new Ear();
   ear.continuous = true;
   ear.lang = navigator.language || "en-GB";
   let wanted = true;
   ear.onresult = (event: any) => {
     const text: string = event.results[event.results.length - 1][0].transcript.trim();
-    if (speaking || Date.now() < quietUntil) return;
-    onHeard(text, intentOf(text));
+    if (speaking || Date.now() < quietUntil || !text) return;
+    onHeard(text);
   };
   ear.onend = () => {
     if (wanted) try { ear.start(); } catch { /* already starting */ } // the browser stops after a silence; keep going
@@ -64,4 +77,21 @@ export function startListening(onHeard: (text: string, intent: Intent | null) =>
     wanted = false;
     ear.stop();
   };
+}
+
+/** Listen for one sentence (the microphone button). */
+export function listenOnce(onHeard: (text: string) => void, onDone: () => void): (() => void) | null {
+  const Ear = Recognition();
+  if (!Ear) return null;
+  stopSpeaking();
+  const ear = new Ear();
+  ear.continuous = false;
+  ear.lang = navigator.language || "en-GB";
+  ear.onresult = (event: any) => {
+    const text: string = event.results[0][0].transcript.trim();
+    if (text) onHeard(text);
+  };
+  ear.onend = onDone;
+  ear.start();
+  return () => ear.stop();
 }

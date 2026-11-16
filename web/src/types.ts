@@ -27,6 +27,7 @@ export type Voice = {
 export type Scenario = { id: string; title: string; story: string };
 export type Config = {
   assistant: string;
+  operator: string; // who the assistant greets; empty means ask once
   source: string;
   models: Model[];
   default_model: string;
@@ -34,6 +35,7 @@ export type Config = {
   voices: Voice[];
   watch_every: number; // seconds between automatic looks at the live system; 0 = off
 };
+export type Talk = { intent: string; scenario: string; agent: string; reply: string; answered_by: string };
 export type IncidentRow = { id: string; title: string; status: string; created: number; service: string };
 
 export type ScanReport = {
