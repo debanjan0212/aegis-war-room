@@ -6,14 +6,14 @@ Where the project stands, what to do on hackathon day, and how it grows into som
 
 | Piece | State | How it was checked |
 |---|---|---|
-| Incident flow: nine agents and a human go / no-go | Working | 39 automated tests, three scenarios played end to end |
+| Incident flow: nine agents and a human go / no-go | Working | 40 automated tests, three scenarios played end to end |
 | Defender: policy, injection filter, plan fingerprint, audit chain | Working | `aegis drill`: eight attacks, all held |
 | Code Guard agent | Working | Run on this repository: Bandit, pip-audit, npm audit, secrets, pin check all clean |
 | War room screen | Working | Driven through a full incident in Chrome, desktop and phone size |
-| Voice commands | Parsing tested | 18 phrases map to the right command. Not yet tried with a real microphone and speaker |
+| Voice | Partly tested | The briefing is written for the ear and tested. 18 spoken phrases map to the right command. Not yet tried with a real microphone and speaker |
 | Model toggle | Wired | Azure and Bedrock clients build and accept the answer shapes. No real model call made yet |
 | Live mode (OpenTelemetry Demo) | Wired | Tested against recorded Prometheus answers and a real flag file. Not yet run against the live shop |
-| Container image | Written | Not built yet. CI builds it on the first push |
+| Container image | Working | CI builds it, starts it and plays an incident inside it up to the go / no-go |
 | Voice cloning | Not started | Folder layout, menu and consent check are in place |
 
 ## Hackathon day: 24 hours

@@ -79,7 +79,13 @@ On the screen, switch **Speaking** on to hear the briefing, and **Listening** on
 
 The **Voice** menu lists every folder in [`voices/`](voices/). Two stock voices ship with the repo. To add your own voice, see [`voices/README.md`](voices/README.md).
 
-### Step 4: switch the model
+### You do not need an AI model
+
+The **Model** menu starts on **Offline rules**, and everything in steps 1 to 3 already ran that way. In this mode each agent uses built-in rules instead of an AI model, and the whole loop works: investigate, plan, defender check, go / no-go, fix, verify, write-up. The tests and CI run like this too.
+
+What you give up without a model: the rules understand the kinds of incident in [`scenarios/`](scenarios/) (a flag switched on by mistake, a bad release). Faced with anything else they hand over to a human instead of guessing. A model adds judgement on incidents the rules have not seen, and better-written summaries. The defender, the go / no-go and the audit log are the same either way.
+
+### Step 4: switch the model (optional)
 
 The **Model** menu is the toggle. Each entry is a few lines in [`config/models.yaml`](config/models.yaml), so moving between clouds is a setting, not a code change.
 
@@ -107,6 +113,24 @@ make serve
 ```
 
 Break something: open the shop's flag page at http://localhost:8080/feature and set `paymentFailure` to 50%. Wait about two minutes, then press **Scan the live system now** on the Aegis screen. Aegis also accepts alerts as a webhook at `POST /api/alerts` in the Alertmanager and Grafana format.
+
+### Step 6: show it to other people
+
+| Where they are | What to do |
+|---|---|
+| In the room, or on a call | `make serve`, open http://localhost:8000 and share your screen. Switch **Speaking** on so they hear the briefing |
+| On the same Wi-Fi, on their own devices | Start it with a token (below) and give them the link |
+| On a machine with Docker | `docker build -t aegis-war-room .` then `docker run --rm -p 127.0.0.1:8000:8000 aegis-war-room`, and open http://localhost:8000 |
+
+To let others on your network open it:
+
+```bash
+export AEGIS_API_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(24))")
+aegis serve --host 0.0.0.0
+echo "http://<your computer's IP address>:8000/?token=$AEGIS_API_TOKEN"
+```
+
+Anyone who opens that link can start a drill and press go, so share it only with the people in the room. There is no login yet. Do not put this on the public internet.
 
 ## How an incident flows
 

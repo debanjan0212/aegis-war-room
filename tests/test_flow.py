@@ -28,6 +28,20 @@ def test_go_applies_the_fix_and_the_service_recovers():
     assert "## Root cause" in incident.result["postmortem"] and "debanjan" in incident.result["stakeholder_update"]
 
 
+def test_the_briefing_is_written_for_the_ear():
+    said_aloud = play("payment-failure").gate["briefing"]
+    assert said_aloud == (
+        "Critical incident on the payment service. The error rate is 42%. The slowest requests take 2.3 seconds. "
+        "A feature flag, payment failure, changed 4 minutes before the alert. I recommend we switch it off. "
+        "The defender check passed, risk low. One log line tried to give me instructions. I quarantined it. Go, or no-go?"
+    )
+    slow = play("recommendation-slow").gate["briefing"]
+    assert slow.startswith("High-severity incident on the recommendation service. The slowest requests take 3.4 seconds.")
+    assert "error rate" not in slow and "recommendation cache failure" in slow
+    for text in (said_aloud, slow):
+        assert "p95" not in text and " ms" not in text and "paymentFailure" not in text
+
+
 def test_no_go_changes_nothing():
     incident = play("payment-failure")
     flow.decide(incident.id, "no-go", incident.gate["plan_hash"], note="want to check with the payment team", wait=True)
