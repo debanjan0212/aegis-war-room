@@ -8,10 +8,13 @@ from ..security import policy
 from .base import pace, say
 
 _STEP_UP = {"none": "none", "low": "medium", "medium": "high", "high": "high"}
+# Which kind of change an action undoes. A flag plan needs a suspected flag, not a release that happens to share its name.
+_UNDOES = {"set_feature_flag": "feature_flag", "rollback_deployment": "deploy"}
 
 
 def review(plan: dict, findings: list[dict], quarantined: list[dict]) -> dict:
-    suspects = {f["suspect"]["target"] for f in findings if f.get("suspect")}
+    kind = _UNDOES.get(plan["action"])
+    suspects = {f["suspect"]["target"] for f in findings if f.get("suspect") and kind in (None, f["suspect"].get("type"))}
     minimum = policy.load()["limits"]["min_confidence"]
     # A change the evidence does not point at is blocked, not just flagged: a model can propose a plausible-sounding
     # fix to the wrong thing, and the human should never be asked to approve a change nobody can connect to the incident.
