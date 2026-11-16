@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# The screen
+node_modules/
+web/dist/
+
+# Never commit these: your keys, and the record of what happened on your machine
+.env
+audit.log.jsonl
+
+# Personal voices stay on your machine. Only the stock voices and the template are in Git,
+# so nobody's recorded voice can be pushed by accident.
+voices/*
+!voices/README.md
+!voices/butler/
+!voices/aria/
+!voices/_template/

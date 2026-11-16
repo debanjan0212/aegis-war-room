@@ -1,0 +1,9 @@
+# A stock voice that ships with the browser. Nothing is cloned.
+name: Butler
+description: Calm British male voice. Built into the browser, free, works offline.
+engine: browser
+lang: en-GB
+# The first of these the browser has is used. Names differ between Chrome, Edge and Safari.
+prefer: ["Google UK English Male", "Microsoft Ryan", "Daniel", "Arthur"]
+rate: 0.96
+pitch: 0.85

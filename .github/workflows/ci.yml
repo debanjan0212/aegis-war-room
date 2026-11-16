@@ -1,0 +1,70 @@
+# Runs on every push to main or develop and every pull request: lint, tests, the security drill, the screen build, the image build.
+# Every action is pinned to a full commit SHA (see security.yml for why).
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (lint, tests, security drill)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check . && ruff format --check .
+      - run: pytest -q
+      - name: Attack the defences and check they hold
+        run: aegis drill
+      - name: Play every scenario end to end
+        run: |
+          for scenario in payment-failure recommendation-slow bad-deploy; do
+            AEGIS_PACE=0 aegis demo --scenario "$scenario" --approve go
+          done
+          aegis audit
+
+  web:
+    name: Screen (type-check and build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run build
+
+  image:
+    name: Container image builds and runs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker build -t aegis-war-room:ci .
+      - name: Start the container and play an incident up to the go / no-go
+        run: |
+          docker run -d --name aegis -p 8000:8000 -e AEGIS_PACE=0 aegis-war-room:ci
+          for attempt in $(seq 1 30); do curl -fs http://127.0.0.1:8000/api/config > /dev/null && break; sleep 1; done
+          curl -fs http://127.0.0.1:8000/ | grep -q "<title>Aegis war room</title>"
+          id=$(curl -fs -X POST http://127.0.0.1:8000/api/incidents/trigger -H "content-type: application/json" \
+            -d '{"scenario":"payment-failure"}' | python3 -c 'import sys, json; print(json.load(sys.stdin)["id"])')
+          sleep 3
+          curl -fs "http://127.0.0.1:8000/api/incidents/$id" | python3 -c 'import sys, json; s = json.load(sys.stdin)["status"]; assert s == "awaiting_decision", s; print("the container reached the go / no-go")'
+      - if: failure()
+        run: docker logs aegis

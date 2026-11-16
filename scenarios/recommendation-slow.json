@@ -1,0 +1,35 @@
+{
+  "id": "recommendation-slow",
+  "order": 2,
+  "title": "Product pages are slow",
+  "story": "A flag broke the recommendation service's cache. Every page now waits for a slow lookup and memory keeps growing.",
+  "alert": {
+    "name": "RecommendationLatencyHigh",
+    "service": "recommendation",
+    "severity": "high",
+    "summary": "Recommendation service p95 latency is above 3 seconds. Product pages load slowly."
+  },
+  "during": {
+    "metrics": {"error_rate": 0.03, "p95_ms": 3400, "requests_per_min": 1260, "memory_mb": 1840, "baseline_error_rate": 0.002, "baseline_p95_ms": 120},
+    "logs": [
+      "WARN recommendation: cache miss for product list, falling back to full catalog call",
+      "WARN recommendation: cached_ids size is 1482211 and growing",
+      "INFO flagd: flag recommendationCacheFailure evaluated, variant=on",
+      "WARN frontend: recommendation call took 3.2s"
+    ],
+    "traces": [
+      "recommendation/ListRecommendations 3.3s: 91% of the time in product-catalog/ListProducts",
+      "frontend GET /api/recommendations 3.5s"
+    ]
+  },
+  "after": {
+    "metrics": {"error_rate": 0.002, "p95_ms": 130, "requests_per_min": 1255, "memory_mb": 310, "baseline_error_rate": 0.002, "baseline_p95_ms": 120},
+    "logs": ["INFO recommendation: cache hit for product list", "INFO flagd: flag recommendationCacheFailure evaluated, variant=off"],
+    "traces": ["recommendation/ListRecommendations 110ms OK"]
+  },
+  "changes": [
+    {"id": "chg-1", "minutes_before_alert": 9, "type": "feature_flag", "target": "recommendationCacheFailure", "service": "recommendation", "detail": "switched from off to on", "by": "experiment-runner"},
+    {"id": "chg-2", "minutes_before_alert": 200, "type": "deploy", "target": "ad", "service": "ad", "detail": "ad v1.14.2 rolled out", "by": "ci"}
+  ],
+  "fix": {"action": "set_feature_flag", "target": "recommendationCacheFailure", "value": "off"}
+}

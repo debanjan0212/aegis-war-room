@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "@fontsource/atkinson-hyperlegible/400.css";
+@import "@fontsource/atkinson-hyperlegible/700.css";
+@import "@fontsource/barlow-condensed/600.css";
+
+/* The look: a dark control-room board with pale paper strips on it, like the
+   flight strips air traffic controllers pass along. Each agent is a station. */
+@theme {
+  --font-sans: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+
+  --color-board: #1e2b34;
+  --color-well: #27363f;
+  --color-rule: #3a4b55;
+  --color-chalk: #dce5e9;
+  --color-chalk-dim: #93a4ae;
+
+  --color-strip: #eef2f3;
+  --color-strip-dim: #dce3e6;
+  --color-ink: #13202a;
+  --color-ink-soft: #4a5b66;
+
+  --color-go: #18794c;
+  --color-nogo: #b3261e;
+  --color-amber: #f0a91b;
+
+  --color-investigate: #3d7dd8;
+  --color-plan: #7a5ccb;
+  --color-defend: #0e8c8c;
+  --color-act: #1e8e5a;
+  --color-record: #7c8a93;
+}
+
+html {
+  background: var(--color-board);
+  color: var(--color-chalk);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+/* One strip of paper on the board. The coloured edge says which station it came from. */
+.strip {
+  background: var(--color-strip);
+  color: var(--color-ink);
+  border-left: 8px solid var(--color-record);
+  border-radius: 2px 6px 6px 2px;
+  padding: 0.7rem 1rem 0.8rem;
+}
+.strip[data-kind="warn"],
+.strip[data-kind="ask"] {
+  background: #fbefcf;
+}
+.strip[data-kind="block"],
+.strip[data-kind="error"] {
+  background: #f8dedb;
+}
+
+.field {
+  background: var(--color-well);
+  color: var(--color-chalk);
+  border: 1px solid var(--color-rule);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+}
+.quiet-button {
+  border: 1px solid var(--color-rule);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  color: var(--color-chalk);
+}
+.quiet-button:hover {
+  background: var(--color-well);
+}
+.quiet-button[aria-pressed="true"] {
+  background: var(--color-chalk);
+  color: var(--color-ink);
+  border-color: var(--color-chalk);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The only thing on the board that moves by itself: the station whose turn it is. */
+@keyframes station-live {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 70%, transparent); }
+  to { box-shadow: 0 0 0 10px transparent; }
+}
+.lamp[data-state="live"] {
+  animation: station-live 1.2s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lamp[data-state="live"] { animation: none; outline: 2px solid currentColor; outline-offset: 3px; }
+}
