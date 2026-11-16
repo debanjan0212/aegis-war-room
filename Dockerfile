@@ -7,7 +7,7 @@ COPY web/ ./
 RUN npm run build
 
 # Stage 2: the war room
-FROM python:3.13-slim
+FROM python:3.15-slim
 # Use requirements-cloud.lock to include the Azure / Bedrock / Vertex libraries:
 #   docker build --build-arg LOCKFILE=requirements-cloud.lock -t aegis-war-room .
 ARG LOCKFILE=requirements.lock
