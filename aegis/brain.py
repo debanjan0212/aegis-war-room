@@ -22,6 +22,7 @@ import httpx
 import yaml
 from pydantic import BaseModel
 
+from . import telemetry
 from .settings import ROOT, env
 
 T = TypeVar("T", bound=BaseModel)
@@ -81,9 +82,13 @@ def _setting(value):
     return os.path.expandvars(value) if isinstance(value, str) else value
 
 
+def _entry(model_id: str) -> dict:
+    return next(m for m in _config()["models"] if m["id"] == model_id)
+
+
 @lru_cache
 def _load(model_id: str):
-    entry = next(m for m in _config()["models"] if m["id"] == model_id)
+    entry = _entry(model_id)
     from langchain.chat_models import init_chat_model  # imported late: only real models need it
 
     options = {key: _setting(value) for key, value in entry.get("options", {}).items()}
@@ -96,8 +101,11 @@ class Brain:
         self.problem = ""
         self.last_error = ""
         self._llm = None
+        self.provider, self.model_name = "", model_id  # what telemetry calls it
         if model_id != "offline":
             try:
+                entry = _entry(model_id)
+                self.provider, self.model_name = entry.get("provider", ""), os.path.expandvars(entry["model"]) or model_id
                 self._llm = _load(model_id)
             except Exception as err:  # noqa: BLE001 - any setup problem means "use offline rules and say why"
                 self.problem = f"{model_id} is not available ({type(err).__name__})"
@@ -107,12 +115,18 @@ class Brain:
         """Ask the model for an answer shaped like `schema`. Returns the answer and who gave it."""
         if self._llm is None:
             return fallback(context), f"offline rules ({self.problem})" if self.problem else "offline rules"
-        try:
-            messages = [("system", f"{GROUND_RULES}\n\n{prompt}"), ("human", json.dumps(context, default=str))]
-            return self._llm.with_structured_output(schema).invoke(messages), self.model_id
-        except Exception as err:  # noqa: BLE001 - a model outage must not stop an incident
-            self.last_error = f"{type(err).__name__}: {err}"[:300]  # the whole reason, for `aegis models --test`
-            return fallback(context), f"offline rules ({self.model_id} failed: {type(err).__name__})"
+        with telemetry.model_span(self.provider, self.model_name) as span:
+            try:
+                messages = [("system", f"{GROUND_RULES}\n\n{prompt}"), ("human", json.dumps(context, default=str))]
+                out = self._llm.with_structured_output(schema, include_raw=True).invoke(messages)
+                telemetry.record_usage(span, out.get("raw"))
+                if out.get("parsed") is None:
+                    raise out.get("parsing_error") or ValueError("the model did not answer in the requested shape")
+                return out["parsed"], self.model_id
+            except Exception as err:  # noqa: BLE001 - a model outage must not stop an incident
+                telemetry.failed(span, err)
+                self.last_error = f"{type(err).__name__}: {err}"[:300]  # the whole reason, for `aegis models --test`
+                return fallback(context), f"offline rules ({self.model_id} failed: {type(err).__name__})"
 
 
 @lru_cache

@@ -212,6 +212,26 @@ flowchart TD
 
 Details, and what is not covered yet, are in [`SECURITY.md`](SECURITY.md).
 
+## Watch the war room itself
+
+The agents that answer incidents are agents too, so they can be put under an error budget like any other. Set
+the standard OpenTelemetry variables and Aegis sends a trace for each half of an incident, in the GenAI
+conventions:
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:8600            # Themis, or any OTLP/HTTP backend
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20<ingest key>"
+aegis demo --approve go
+```
+
+One trace runs from the alert to the go / no-go question, the other from your answer to the postmortem; both
+carry the incident id as the session. Each agent is an `invoke_agent` span, each model question a `chat` span
+with its token counts (a model that fails is an error, and the offline rules are not reported as a model), and the
+change itself is an `execute_tool` span marked approved or refused by a human. Prompts and model answers are
+never recorded, because they can hold what an attacker wrote into a log line. Without the variables nothing is
+sent. [Themis](https://github.com/debanjan0212/themis-agent-sre) reads these traces and also sends Aegis its
+incidents through `/api/alerts`.
+
 ## Where things are
 
 ```text

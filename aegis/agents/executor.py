@@ -1,5 +1,6 @@
 """Executor agent: runs the approved action, and only the approved action."""
 
+from .. import telemetry
 from ..connectors import get_connector
 from ..security import policy
 from .base import pace, say
@@ -23,14 +24,17 @@ def execute(plan: dict, decision: dict, connector) -> str:
 
 def run(state: dict) -> dict:
     plan = state["plan"]
-    try:
-        outcome = execute(plan, state["decision"], get_connector())
-    except Refused as err:
-        say(state, "executor", f"I refuse to act: {err}.", "block")
-        return {"execution": {"ok": False, "detail": f"Refused: {err}"}}
-    except Exception as err:  # noqa: BLE001 - a failed action must be reported, not hidden
-        say(state, "executor", f"The action failed: {err}", "error")
-        return {"execution": {"ok": False, "detail": f"Failed: {err}"}}
+    with telemetry.human_decision(plan, state["decision"].get("decision", "")) as span:
+        try:
+            outcome = execute(plan, state["decision"], get_connector())
+        except Refused as err:
+            telemetry.failed(span, err, "refused")
+            say(state, "executor", f"I refuse to act: {err}.", "block")
+            return {"execution": {"ok": False, "detail": f"Refused: {err}"}}
+        except Exception as err:  # noqa: BLE001 - a failed action must be reported, not hidden
+            telemetry.failed(span, err)
+            say(state, "executor", f"The action failed: {err}", "error")
+            return {"execution": {"ok": False, "detail": f"Failed: {err}"}}
     pace()
     say(state, "executor", f"Done as approved: {outcome}.", "action", {"plan_hash": policy.plan_hash(plan)})
     return {"execution": {"ok": True, "detail": outcome}}

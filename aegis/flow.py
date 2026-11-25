@@ -18,7 +18,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
-from . import store
+from . import store, telemetry
 from .agents import changes, defender, executor, planner, runbook, scribe, signals, triage, verifier
 from .security import policy
 
@@ -84,7 +84,11 @@ def brief(state: State) -> dict:
 
 
 def gate(state: State) -> dict:
-    return {"decision": interrupt(state["gate"]["plan_hash"])}  # the flow sleeps here until a human answers
+    decision = interrupt(state["gate"]["plan_hash"])  # the flow sleeps here until a human answers
+    if decision["decision"] != "go":
+        with telemetry.human_decision(state["plan"], decision["decision"]):
+            pass  # the change a person refused, recorded where the executor would have made it
+    return {"decision": decision}
 
 
 def after_defender(state: State) -> str:
@@ -99,7 +103,8 @@ def _tracked(name: str, step):
     def run(state: State) -> dict:
         store.start_work(state["incident_id"], name)
         try:
-            return step(state)
+            with telemetry.agent_span(name):
+                return step(state)
         finally:
             store.end_work(state["incident_id"], name)
 
@@ -146,9 +151,26 @@ GRAPH = build().compile(checkpointer=InMemorySaver())
 _lock = threading.Lock()
 
 
+# How each way an incident can end reads in telemetry: blocked means a person, not an agent, has it now.
+OUTCOMES = {
+    "awaiting_decision": "success",
+    "resolved": "success",
+    "rejected": "blocked",
+    "escalated": "blocked",
+    "not_resolved": "failed",
+    "failed": "failed",
+}
+
+
 def _run(incident_id: str, payload) -> None:
+    part = "act" if isinstance(payload, Command) else "investigate"
     try:
-        GRAPH.invoke(payload, {"configurable": {"thread_id": incident_id}})
+        with telemetry.incident_trace(incident_id, part) as span:
+            GRAPH.invoke(payload, {"configurable": {"thread_id": incident_id}})
+            outcome = OUTCOMES.get(store.INCIDENTS[incident_id].status, "failed")
+            span.set_attribute("themis.journey.outcome", outcome)
+            if outcome == "failed":
+                telemetry.failed(span, "the incident ended " + store.INCIDENTS[incident_id].status, "not_resolved")
     except Exception as err:  # noqa: BLE001 - whatever breaks, the room must be told and the incident must not hang
         store.emit(incident_id, "aegis", f"The flow stopped with an error: {err}", "error")
         store.finish(

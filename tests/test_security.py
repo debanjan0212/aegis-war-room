@@ -105,7 +105,7 @@ def test_code_guard_reports_a_scanner_that_cannot_run(tmp_path, monkeypatch):
 
 def test_a_failing_model_falls_back_to_offline_rules():
     class Down:
-        def with_structured_output(self, _schema):
+        def with_structured_output(self, _schema, **_):
             raise ConnectionError("no network")
 
     brain = Brain("offline")

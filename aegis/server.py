@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import assistant, flow, store
+from . import assistant, flow, store, telemetry
 from .agents import codeguard
 from .brain import default_model, models
 from .connectors import get_connector
@@ -62,6 +62,7 @@ def _watch(every: float) -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    telemetry.setup()
     if every := watch_every():
         threading.Thread(target=_watch, args=(every,), daemon=True).start()
     yield
