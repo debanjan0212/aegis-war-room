@@ -4,6 +4,7 @@ Every release, newest first. Versions follow semantic versioning.
 
 ## Unreleased
 
+- **OpenTelemetry for the war room's own agents:** set `OTEL_EXPORTER_OTLP_ENDPOINT` and every incident is sent as two traces in the GenAI conventions (investigate, then act), with a span per agent, per model question (with token counts) and for the approved or refused change. Prompts and answers are never recorded. Tested in `tests/test_telemetry.py`, and against Themis in its ecosystem tests.
 - **A model on your laptop:** a "Local model" entry in the model toggle, through Ollama. No cloud, no key. `pip install -e ".[local]"`, a table in the README for which model fits your memory.
 - **`aegis models --test`** (`make models`): asks every ready model one tiny question in the same fixed shape the agents use, and says ANSWERED or FAILED with the reason. `aegis models` alone says what each model is still missing.
 - **The room wakes up by itself:** in live mode, `AEGIS_WATCH_EVERY` looks at the live system every few seconds and opens an incident for anything unhealthy. It stays quiet for a while after an incident (`AEGIS_WATCH_QUIET`), so a no-go is not asked again and again. The screen follows any incident it did not start itself, including ones from the alert webhook.

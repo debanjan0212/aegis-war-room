@@ -119,6 +119,9 @@ def _models(args) -> int:
 
 def main() -> None:
     _load_env()
+    from .telemetry import setup
+
+    setup()  # only does something when OTEL_EXPORTER_OTLP_ENDPOINT is set
     parser = argparse.ArgumentParser(prog="aegis", description="Aegis War Room")
     commands = parser.add_subparsers(dest="command", required=True)
 
